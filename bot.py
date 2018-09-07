@@ -7,7 +7,6 @@
 import os
 import re
 import time
-import requests
 import urllib
 import validators
 from PIL import Image
@@ -83,10 +82,6 @@ def handle_command(command, channel):
     # This is where you start to implement more commands!
     if command.startswith(KMEANS_COMMAND):
         bot_kmeans(command, channel)
-        repsonse = "Processed Kmeans command"
-
-    # Sends the response back to the channel
-    respond(response, channel)
 
 def respond(message, channel):
     slack_client.api_call(
@@ -106,27 +101,38 @@ def bot_kmeans(command, channel):
     k_value = command_list[2]
     
     # validate url and k-value
-    print(check_url(img_url))
-    respond('Could not validate url. Are you sure it is correct?', channel)
-    return
-    if not (0 < k_value and k_value < 11):
-        respond('K values must be between 1 and 10 inclusive.', channel)
+    if not check_url(img_url):
+        respond('Could not validate url. Are you sure it is correct?', channel)
+        return
+    try:
+        k_value = int(k_value)
+    except ValueError:
+        respond('K value must be an integer')
+        return
+    if not (0 < k_value < 11):
+        respond('K value must be between 1 and 10 inclusive.', channel)
         return
 
     # acquire image
-    response = requests.get(img_url)
-    img = Image.open(BytesIO(response.content))
+    with urllib.request.urlopen(img_url) as url:
+        with open('in.png', 'wb') as f:
+            f.write(url.read())
+    img = Image.open('in.png')
+    img.save('out.png')
 
     # TODO edit image here...
 
-    slack_client.api_call(
-        'files.upload',
-        channel=channel,
-        filename='out.png',
-        title='output',
-        initial_comment=('k: %d' % k_value),
-        file=img
-    )
+    print('yes')
+   
+    with open('out.png', 'rb') as f:
+        slack_client.api_call(
+            'files.upload',
+            channel=channel,
+            filename='out.png',
+            title='output',
+            initial_comment=('k: %d' % k_value),
+            file=BytesIO(f.read())
+        )
 
 
 if __name__ == "__main__":
