@@ -43,7 +43,7 @@ def kMeans(points, k, maxIter=10):
     centroids = initialize_centroids(points, k)
 
     for i in range(0, maxIter):
-        print("Iteration: " + str(i + 1))
+        # print("Iteration: " + str(i + 1))
         closestCentroids = closest_centroids(points, centroids)
         centroids = move_centroids(points, closestCentroids, centroids)
 
@@ -62,4 +62,5 @@ def main():
     # same new pixels to new image
     misc.imsave("outfile.jpg", newPoints)
 
-main()
+if __name__ == '__main__':
+    main()

@@ -9,8 +9,10 @@ import re
 import time
 import urllib
 import validators
-from PIL import Image
+from scipy import misc
+# from PIL import Image
 from io import BytesIO
+from kmeans import kMeans
 from slackclient import SlackClient
 
 # instantiate Slack client
@@ -117,23 +119,22 @@ def bot_kmeans(command, channel):
     with urllib.request.urlopen(img_url) as url:
         with open('in.png', 'wb') as f:
             f.write(url.read())
-    img = Image.open('in.png')
-    img.save('out.png')
 
-    # TODO edit image here...
+    # perform kMeans
+    im = misc.imread('in.png')
+    newIm = kMeans(im, k_value)
+    misc.imsave('out.png', newIm)
 
-    print('yes')
-   
+    # post image to channel
     with open('out.png', 'rb') as f:
         slack_client.api_call(
             'files.upload',
-            channel=channel,
+            channels=[channel],
             filename='out.png',
             title='output',
             initial_comment=('k: %d' % k_value),
-            file=BytesIO(f.read())
+            file=f
         )
-
 
 if __name__ == "__main__":
     if slack_client.rtm_connect(with_team_state=False):
