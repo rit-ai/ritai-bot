@@ -22,9 +22,9 @@ starterbot_id = None
 
 # constants
 RTM_READ_DELAY = 1 # second delay between reading from RTM
-KMEANS_COMMAND = "kmeans"
-EXAMPLE_COMMAND = "do"
-MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
+KMEANS_COMMAND = 'kmeans'
+HELP_COMMAND = 'help'
+MENTION_REGEX = '^<@(|[WU].+?)>(.*)'
 
 def check_url(url):
     """
@@ -34,9 +34,9 @@ def check_url(url):
     author: Matto Todd
     """
     headers={
-            "Range": "bytes=0-10",
-            "User-Agent": "MyTestAgent",
-            "Accept":"*/*"
+            'Range': 'bytes=0-10',
+            'User-Agent': 'MyTestAgent',
+            'Accept':'*/*'
     }
 
     try:
@@ -52,10 +52,10 @@ def parse_bot_commands(slack_events):
     channel. If its not found, then this function returns None, None.
     """
     for event in slack_events:
-        if event["type"] == "message" and not "subtype" in event:
-            user_id, message = parse_direct_mention(event["text"])
+        if event['type'] == 'message' and not 'subtype' in event:
+            user_id, message = parse_direct_mention(event['text'])
             if user_id == starterbot_id:
-                return message, event["channel"]
+                return message, event['channel']
     return None, None
 
 def parse_direct_mention(message_text):
@@ -77,20 +77,35 @@ def handle_command(command, channel):
     Executes bot command if the command is known
     """
     # Default response is help text for the user
-    default_response = "Unknown command. Try *{}*.".format(EXAMPLE_COMMAND)
+    default_response = 'Unknown command. Try *{}*.'.format(KMEANS_COMMAND)
 
-    # Finds and executes the given command, filling in response
-    response = None
-    # This is where you start to implement more commands!
-    if command.startswith(KMEANS_COMMAND):
+    if command.startswith(HELP_COMMAND):
+        bot_help(command, channel)
+
+    elif command.startswith(KMEANS_COMMAND):
         bot_kmeans(command, channel)
 
 def respond(message, channel):
     slack_client.api_call(
-        "chat.postMessage",
+        'chat.postMessage',
         channel=channel,
         text=message
     )
+
+def bot_help(command, channel):
+    command_list = command.split(' ')
+    
+    # default response
+    message =   'Available commands:\n' +\
+                '\t@ritai help\n' +\
+                '\t@ritai kmeans [image_url] [k_value]'
+    
+    # specific responses
+    if len(command_list) == 2:
+        if command_list[1] == KMEANS_COMMAND:
+            message = 'usage: @ritai kmeans [image_url] [k_value]'
+
+    respond(message, channel)
 
 def bot_kmeans(command, channel):
     command_list = command.split(' ')
@@ -136,15 +151,15 @@ def bot_kmeans(command, channel):
             file=f
         )
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     if slack_client.rtm_connect(with_team_state=False):
-        print("Starter Bot connected and running!")
+        print('Starter Bot connected and running!')
         # Read bot's user ID by calling Web API method `auth.test`
-        starterbot_id = slack_client.api_call("auth.test")["user_id"]
+        starterbot_id = slack_client.api_call('auth.test')['user_id']
         while True:
             command, channel = parse_bot_commands(slack_client.rtm_read())
             if command:
                 handle_command(command, channel)
             time.sleep(RTM_READ_DELAY)
     else:
-        print("Connection failed. Exception traceback printed above.")
+        print('Connection failed. Exception traceback printed above.')
