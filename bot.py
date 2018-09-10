@@ -13,6 +13,7 @@ from scipy import misc
 # from PIL import Image
 from io import BytesIO
 from kmeans import kMeans
+from mnist import mnist
 from slackclient import SlackClient
 
 # instantiate Slack client
@@ -22,8 +23,9 @@ starterbot_id = None
 
 # constants
 RTM_READ_DELAY = 1 # second delay between reading from RTM
-KMEANS_COMMAND = 'kmeans'
 HELP_COMMAND = 'help'
+KMEANS_COMMAND = 'kmeans'
+MNIST_COMMAND = 'mnist'
 MENTION_REGEX = '^<@(|[WU].+?)>(.*)'
 
 def check_url(url):
@@ -85,6 +87,12 @@ def handle_command(command, channel):
     elif command.startswith(KMEANS_COMMAND):
         bot_kmeans(command, channel)
 
+    elif command.startswith(MNIST_COMMAND):
+        bot_mnist(command, channel)
+
+    else:
+        respond(default_response, channel)
+
 def respond(message, channel):
     slack_client.api_call(
         'chat.postMessage',
@@ -106,6 +114,31 @@ def bot_help(command, channel):
             message = 'usage: @ritai kmeans [image_url] [k_value]'
 
     respond(message, channel)
+
+def bot_mnist(command, channel):
+    command_list = command.split(' ')
+    # make sure all command arguments are present with no extras
+    if len(command_list) != 2:
+        respond('Usage: @ritai mnist [image_url]', channel)
+        return
+    
+    img_url = command_list[1]
+
+    # validate url
+    if not check_url(img_url):
+        respond('Could not validate url. Are you sure it is correct?', channel)
+        return
+    
+    with urllib.request.urlopen(img_url) as url:
+        with open('in.png', 'wb') as f:
+            f.write(url.read())
+
+    # perform mnist
+    img = misc.imread('in.png', flatten=True)
+    prediction = mnist.query(img)
+
+    # report prediction
+    respond('I think this is a... %d.' % prediction, channel)
 
 def bot_kmeans(command, channel):
     command_list = command.split(' ')
