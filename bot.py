@@ -8,13 +8,15 @@ import os
 import re
 import time
 import urllib
+import requests
+import traceback
 import validators
 from scipy import misc
-# from PIL import Image
 from io import BytesIO
 from kmeans import kMeans
 from mnist import mnist
 from slackclient import SlackClient
+from download_img import download_img
 
 # instantiate Slack client
 slack_client = SlackClient(os.environ.get('APP_BOT_USER_TOKEN'))
@@ -27,6 +29,7 @@ HELP_COMMAND = 'help'
 KMEANS_COMMAND = 'kmeans'
 MNIST_COMMAND = 'mnist'
 MENTION_REGEX = '^<@(|[WU].+?)>(.*)'
+HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
 
 def check_url(url):
     """
@@ -35,17 +38,16 @@ def check_url(url):
 
     author: Matto Todd
     """
-    headers={
-            'Range': 'bytes=0-10',
-            'User-Agent': 'MyTestAgent',
-            'Accept':'*/*'
-    }
 
     try:
-        response = urllib.request.urlopen(url)
-        return response.code in range(200, 300)
-    except urllib.error.URLError:
+        response = requests.get(url, headers=HEADERS)
+    except ConnectionError:
         return False
+
+    if 200 <= response.status_code <= 200:
+        return True
+
+    return False
 
 def parse_bot_commands(slack_events):
     """
@@ -80,18 +82,26 @@ def handle_command(command, channel):
     """
     # Default response is help text for the user
     default_response = 'Unknown command. Try *{}*.'.format(KMEANS_COMMAND)
+    error_response = 'There was an unknown error. Whoops, please edit.'
 
-    if command.startswith(HELP_COMMAND):
-        bot_help(command, channel)
+    try:
+        if command.startswith(HELP_COMMAND):
+            bot_help(command, channel)
 
-    elif command.startswith(KMEANS_COMMAND):
-        bot_kmeans(command, channel)
+        elif command.startswith(KMEANS_COMMAND):
+            bot_kmeans(command, channel)
 
-    elif command.startswith(MNIST_COMMAND):
-        bot_mnist(command, channel)
+        elif command.startswith(MNIST_COMMAND):
+            bot_mnist(command, channel)
 
-    else:
-        respond(default_response, channel)
+        else:
+            respond(default_response, channel)
+    except Exception as e:
+        with open('elog.txt', 'a') as f:
+            f.write(str(e))
+            f.write(traceback.format_exc())
+            print(traceback.format_exc())
+        respond(error_response, channel)
 
 def respond(message, channel):
     slack_client.api_call(
@@ -106,6 +116,7 @@ def bot_help(command, channel):
     # default response
     message =   'Available commands:\n' +\
                 '\t@ritai help\n' +\
+                '\t@ritai mnist [image_url]' +\
                 '\t@ritai kmeans [image_url] [k_value]'
     
     # specific responses
@@ -124,14 +135,15 @@ def bot_mnist(command, channel):
     
     img_url = command_list[1]
 
+    if img_url.startswith('<'):
+        img_url = img_url[1:-2]
+    
     # validate url
     if not check_url(img_url):
-        respond('Could not validate url. Are you sure it is correct?', channel)
+        respond('Could not validate url.', channel)
         return
-    
-    with urllib.request.urlopen(img_url) as url:
-        with open('in.png', 'wb') as f:
-            f.write(url.read())
+
+    download_img(img_url, 'in.png')
 
     # perform mnist
     img = misc.imread('in.png', flatten=True)
@@ -149,10 +161,13 @@ def bot_kmeans(command, channel):
 
     img_url = command_list[1]
     k_value = command_list[2]
-    
+  
+    if img_url.startswith('<'):
+        img_url = img_url[1:-1]
+
     # validate url and k-value
     if not check_url(img_url):
-        respond('Could not validate url. Are you sure it is correct?', channel)
+        respond('Could not validate url.', channel)
         return
     try:
         k_value = int(k_value)
@@ -164,9 +179,7 @@ def bot_kmeans(command, channel):
         return
 
     # acquire image
-    with urllib.request.urlopen(img_url) as url:
-        with open('in.png', 'wb') as f:
-            f.write(url.read())
+    download_img(img_url, 'in.png')
 
     # perform kMeans
     im = misc.imread('in.png')
@@ -186,7 +199,7 @@ def bot_kmeans(command, channel):
 
 if __name__ == '__main__':
     if slack_client.rtm_connect(with_team_state=False):
-        print('Starter Bot connected and running!')
+        print('ritai-bot is connected and running!')
         # Read bot's user ID by calling Web API method `auth.test`
         starterbot_id = slack_client.api_call('auth.test')['user_id']
         while True:
