@@ -1,3 +1,4 @@
+import pdb
 import numpy as np
 from scipy import misc
 
@@ -24,8 +25,8 @@ def move_centroids(points, closest, centroids):
     return np.array(newCentroids)
 
 def initialize_centroids(points, k):
-    (x, y, z) = points.shape
-    centroids = points.copy().reshape(x * y, z)
+    # ensure unique centroids are chosen
+    centroids = np.unique(points.reshape(-1, points.shape[2]), axis=0)
     np.random.shuffle(centroids)
     return centroids[:k]
 
