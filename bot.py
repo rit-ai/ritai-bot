@@ -51,7 +51,7 @@ def parse_bot_commands(slack_events):
     """
     for event in slack_events:
         if event['type'] == 'message' and not 'subtype' in event:
-            pdb.set_trace()
+            # pdb.set_trace()
             user_id, message = parse_direct_mention(event['text'])
             if user_id == starterbot_id:
                 return message, event['channel']
