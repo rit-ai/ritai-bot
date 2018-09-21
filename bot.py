@@ -6,12 +6,13 @@
 
 import os
 import re
+import sys
 import pdb
 import time
 import urllib
 import requests
-import traceback
 import validators
+import numpy as np
 from scipy import misc
 from io import BytesIO
 from kmeans import kMeans
@@ -20,12 +21,13 @@ from slackclient import SlackClient
 from download_img import download_img
 
 # instantiate Slack client
-slack_client = SlackClient(os.environ.get('APP_BOT_USER_TOKEN'))
+BOT_TOKEN = os.environ.get('APP_BOT_USER_TOKEN')
+slack_client = SlackClient(BOT_TOKEN)
 # starterbot's user ID in Slack: value is assigned after the bot starts up
-starterbot_id = None
+bot_name = None
 
 # constants
-RTM_READ_DELAY = 1 # second delay between reading from RTM
+RTM_READ_DELAY = 2 # second delay between reading from RTM
 HELP_COMMAND = 'help'
 KMEANS_COMMAND = 'kmeans'
 MNIST_COMMAND = 'mnist'
@@ -40,6 +42,7 @@ def check_url(url):
     author: Matto Todd
     """
 
+    # TODO consier replacing with requests library
     try:
         response = requests.get(url, headers=HEADERS)
     except ConnectionError:
@@ -58,9 +61,14 @@ def parse_bot_commands(slack_events):
     """
     for event in slack_events:
         if event['type'] == 'message' and not 'subtype' in event:
-            # pdb.set_trace()
-            user_id, message = parse_direct_mention(event['text'])
-            if user_id == starterbot_id:
+            user_name, message = parse_direct_mention(event['text'])
+            if user_name == bot_name:
+                # download a file if it was present in the message
+                try:
+                    f = event['files'][0]
+                    download_image(f['url_private_download'])
+                except KeyError:
+                    pass
                 return message, event['channel']
     return None, None
 
@@ -83,8 +91,8 @@ def handle_command(command, channel):
     Executes bot command if the command is known
     """
     # Default response is help text for the user
-    default_response = 'Unknown command. Try *{}*.'.format(KMEANS_COMMAND)
-    error_response = 'There was an unknown error. Whoops, please edit.'
+    default_response = 'Unknown command. Try @ritai {}'.format(KMEANS_COMMAND)
+    error_response = 'There\'s been an error. Whoops, please edit.'
 
     try:
         if command.startswith(HELP_COMMAND):
@@ -98,55 +106,103 @@ def handle_command(command, channel):
 
         else:
             respond(default_response, channel)
-    except Exception as e:
-        with open('elog.txt', 'a') as f:
-            f.write(str(e))
-            f.write(traceback.format_exc())
-            print(traceback.format_exc())
+    except Exception:
+        err = sys.exc_info()[0]
+        with open('elog.txt', 'a') as elog:
+            elog.write(err + '\n\n')
+        print(err)
         respond(error_response, channel)
 
 def respond(message, channel):
+    """
+    Shorthand for posting a response
+    """
     slack_client.api_call(
         'chat.postMessage',
         channel=channel,
         text=message
     )
 
+def download_image(img_url):
+    """
+    Download an image from a url
+    """
+
+    # sometimes slack packages urls in messages in brackets
+    # these will cause an error unless we remove them
+    if img_url[0] == '<':
+        img_url = img_url[1:-1]
+    
+    headers = {'Authorization': 'Bearer %s' % BOT_TOKEN}
+    response = requests.get(img_url, headers=headers)
+    with open('in.png', 'wb') as image:
+        image.write(response.content)
+
 def bot_help(command, channel):
+    """
+    Prints help command, in case the user would like to know more about a 
+    particular capability of the bot
+    """
     command_list = command.split(' ')
     
     # default response
     message =   'Available commands:\n' +\
-                '\t@ritai help\n' +\
-                '\t@ritai mnist [image_url]' +\
-                '\t@ritai kmeans [image_url] [k_value]'
+                '\t@ritai help [command]\n' +\
+                '\t\tprints this message, or more info about a command\n' +\
+                '\t@ritai kmeans [image_url] [k_value]\n' +\
+                '\t\tperforms k-means clustering over an image\n' +\
+                '\t@ritai mnist [image_url]\n' +\
+                '\t\tguesses what number is in an image\n'
     
-    # specific responses
+    # specific responses to particular commands
     if len(command_list) == 2:
+        if command_list[1] == HELP_COMMAND:
+            message =   'Okay, now you\'re just being silly.'
+
         if command_list[1] == KMEANS_COMMAND:
-            message = 'usage: @ritai kmeans [image_url] [k_value]'
+            message =   'usage:\n' +\
+                        '\t@ritai kmeans [k_value]\n' +\
+                        '\t\tperform k-means over latest attachment\n' +\
+                        '\t@ritai kmeans [image_url] [k_value]\n' +\
+                        '\t\tperform k-means over image in url\n' +\
+                        '\tNOTE: k_value must be in range [1-10]\n' +\
+                        '\tNOTE: omit k_value to have it chosen randomly'
+        
+        if command_list[2] == MNIST_COMMAND:
+            message =   'usage:\n' +\
+                        '\t@ritai mnist\n' +\
+                        '\t\tguess what number is in latest attachment\n' +\
+                        '\t@ritai mnist [image_url]\n' +\
+                        '\t\tguess what number is in image in url\n'
 
     respond(message, channel)
 
 def bot_mnist(command, channel):
+    """
+    Uses a rudimentary neural net to guess which number is in an image.
+    """
     command_list = command.split(' ')
-    # make sure all command arguments are present with no extras
-    if len(command_list) != 2:
-        respond('Usage: @ritai mnist [image_url]', channel)
+
+    img_url = None
+
+    # was an image url provided?
+    if len(command_list) > 1:
+        img_url = command_list[1]
+    # warn user if they entered too many arguments
+    if len(command_list) > 2:
+        respond('Invalid number of arguments: %d' % len(command_list), channel)
         return
-    
-    img_url = command_list[1]
 
     if img_url.startswith('<'):
         img_url = img_url[1:-2]
     
     # validate url
-    if not check_url(img_url):
-        respond('Could not validate url.', channel)
+    if img_url and not check_url(img_url):
+        respond('Could not validate url. Are you sure it is correct?', channel)
         return
-
-    download_img(img_url, 'in.png')
-
+    
+    if img_url: download_image(img_url) 
+    
     # perform mnist
     img = misc.imread('in.png', flatten=True)
     prediction = mnist.query(img)
@@ -155,33 +211,56 @@ def bot_mnist(command, channel):
     respond('I think this is a... %d.' % prediction, channel)
 
 def bot_kmeans(command, channel):
+    """
+    Performs k-means clustering over a given image input (color simplification)
+
+    If an image URL is provided, it attempts to download from that URL. 
+    Otherwise, it assumes an attachment was added to the original message.
+
+    If a k value was provided, it uses that k value. Otherwise, it choses
+    a random one.
+    """
     command_list = command.split(' ')
-    # make sure all command arguments are present with no extras
-    if len(command_list) != 3:
-        respond('Usage: @ritai kmeans [image_url] [k_value]', channel)
+
+    img_url = None
+    k_value = None
+
+    # was an image url provided?
+    if len(command_list) > 1:
+        img_url = command_list[1]
+    # was a k value provided?
+    if len(command_list) > 2:
+        k_value = command_list[2]
+    # warn the user if too many arguments were provided
+    if len(command_list) > 3:
+        respond('Invalid numer of arguments: %d' % len(command_list), channel)
         return
+    
+    # validate url and k-value, as necessary
 
-    img_url = command_list[1]
-    k_value = command_list[2]
-  
-    if img_url.startswith('<'):
-        img_url = img_url[1:-1]
+    # if the url is one character, it was probably the k value
+    if img_url and len(img_url) == 1:
+        k_value = img_url
+        img_url = None
 
-    # validate url and k-value
-    if not check_url(img_url):
+    if img_url and not check_url(img_url):
         respond('Could not validate url.', channel)
         return
-    try:
-        k_value = int(k_value)
-    except ValueError:
-        respond('K value must be an integer')
-        return
-    if not (0 < k_value < 11):
-        respond('K value must be between 1 and 10 inclusive.', channel)
-        return
 
-    # acquire image
-    download_img(img_url, 'in.png')
+    if k_value:
+        try:
+            k_value = int(k_value)
+        except ValueError:
+            respond('K value must be an integer')
+            return
+        if not (0 < k_value < 11):
+            respond('K value must be between 1 and 10 inclusive.', channel)
+            return
+    else:
+        k_value = (int)(np.random.normal(5, 2.5))
+
+    # acquire image (if no url, assume image has already been downloaded)
+    if img_url: download_image(img_url)
 
     # perform kMeans
     im = misc.imread('in.png')
@@ -200,13 +279,17 @@ def bot_kmeans(command, channel):
         )
 
 if __name__ == '__main__':
+    # try to connect to slack
     if slack_client.rtm_connect(with_team_state=False):
-        print('ritai-bot is connected and running!')
         # Read bot's user ID by calling Web API method `auth.test`
-        starterbot_id = slack_client.api_call('auth.test')['user_id']
+        bot_name = slack_client.api_call('auth.test')['user_id']
+        # connection is successful
+        print('ritai-bot connected and running!')
         while True:
+            # loop forever, checking for mentions every RTM_READ_DELAY
             command, channel = parse_bot_commands(slack_client.rtm_read())
             if command:
+                print(command)
                 handle_command(command, channel)
             time.sleep(RTM_READ_DELAY)
     else:
