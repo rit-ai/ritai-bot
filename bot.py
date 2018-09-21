@@ -254,7 +254,9 @@ def bot_kmeans(command, channel):
             respond('K value must be between 1 and 10 inclusive.', channel)
             return
     else:
-        k_value = (int)(np.random.normal(5, 2.5))
+        k_value = (int)(np.random.normal(7, 3))
+        if k_value < 1: k_value = 1
+        if k_value > 10: k_value = 10
 
     # acquire image (if no url, assume image has already been downloaded)
     if img_url: download_image(img_url)
