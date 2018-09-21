@@ -109,7 +109,7 @@ def handle_command(command, channel):
     except Exception:
         err = sys.exc_info()[0]
         with open('elog.txt', 'a') as elog:
-            elog.write(err + '\n\n')
+            elog.write(str(err) + '\n\n')
         print(err)
         respond(error_response, channel)
 
@@ -193,9 +193,6 @@ def bot_mnist(command, channel):
         respond('Invalid number of arguments: %d' % len(command_list), channel)
         return
 
-    if img_url.startswith('<'):
-        img_url = img_url[1:-2]
-    
     # validate url
     if img_url and not check_url(img_url):
         respond('Could not validate url. Are you sure it is correct?', channel)
