@@ -11,6 +11,7 @@ import pdb
 import time
 import urllib
 import requests
+import traceback
 import validators
 import numpy as np
 from scipy import misc
@@ -41,6 +42,9 @@ def check_url(url):
 
     author: Matto Todd
     """
+    
+    if url[0] == '<':
+        url = url[1:-1]
 
     # TODO consier replacing with requests library
     try:
@@ -107,9 +111,9 @@ def handle_command(command, channel):
         else:
             respond(default_response, channel)
     except Exception:
-        err = sys.exc_info()[0]
+        err = traceback.format_exc()
         with open('elog.txt', 'a') as elog:
-            elog.write(str(err) + '\n\n')
+            elog.write(err + '\n\n')
         print(err)
         respond(error_response, channel)
 
@@ -235,8 +239,8 @@ def bot_kmeans(command, channel):
     
     # validate url and k-value, as necessary
 
-    # if the url is one character, it was probably the k value
-    if img_url and len(img_url) == 1:
+    # if the url is only a few characters, it was probably the k value
+    if img_url and len(img_url) < 5:
         k_value = img_url
         img_url = None
 
