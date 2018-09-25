@@ -16,8 +16,9 @@ import validators
 import numpy as np
 from scipy import misc
 from io import BytesIO
-from kmeans import kMeans
+from joke import joke
 from mnist import mnist
+from kmeans import kMeans
 from slackclient import SlackClient
 from download_img import download_img
 
@@ -28,11 +29,12 @@ slack_client = SlackClient(BOT_TOKEN)
 bot_name = None
 
 # constants
-RTM_READ_DELAY = 2 # second delay between reading from RTM
-HELP_COMMAND = 'help'
-KMEANS_COMMAND = 'kmeans'
-MNIST_COMMAND = 'mnist'
-MENTION_REGEX = '^<@(|[WU].+?)>(.*)'
+RTM_READ_DELAY  = 2 # second delay between reading from RTM
+HELP_COMMAND    = 'help'
+MNIST_COMMAND   = 'mnist'
+KMEANS_COMMAND  = 'kmeans'
+JOKE_COMMAND    = 'joke'
+MENTION_REGEX   = '^<@(|[WU].+?)>(.*)'
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
 
 def check_url(url):
@@ -68,11 +70,16 @@ def parse_bot_commands(slack_events):
             user_name, message = parse_direct_mention(event['text'])
             if user_name == bot_name:
                 # download a file if it was present in the message
-                try:
+                if 'files' in event:
+                    # file is present
                     f = event['files'][0]
                     download_image(f['url_private_download'])
-                except KeyError:
-                    pass
+                #try:
+                #    f = event['files'][0]
+                #    download_image(f['url_private_download'])
+                #except KeyError:
+                #    # no file is present in the message
+                #    pass
                 return message, event['channel']
     return None, None
 
@@ -102,15 +109,22 @@ def handle_command(command, channel):
         if command.startswith(HELP_COMMAND):
             bot_help(command, channel)
 
+        elif command.startswith(MNIST_COMMAND):
+            bot_mnist(command, channel)
+        
         elif command.startswith(KMEANS_COMMAND):
             bot_kmeans(command, channel)
 
-        elif command.startswith(MNIST_COMMAND):
-            bot_mnist(command, channel)
+        elif command.startswith(JOKE_COMMAND):
+            bot_joke(command, channel)
 
         else:
             respond(default_response, channel)
     except Exception:
+        # we don't want the bot to crash because we cannot easily restart it
+        # this default response will at least make us aware that there's an 
+        # error happening, so we can hopefully replicate and fix it on the 
+        # dev version of the bot
         err = traceback.format_exc()
         with open('elog.txt', 'a') as elog:
             elog.write(err + '\n\n')
@@ -280,6 +294,29 @@ def bot_kmeans(command, channel):
             initial_comment=('k: %d' % k_value),
             file=f
         )
+
+def bot_joke(command, channel):
+    """
+    Has the bot try to tell a joke using a joke database and a Markov chain.
+
+    The user can provide a seed if desired.
+    """
+
+    command_list = command.split(' ')
+
+    seed = None
+    response = None
+
+    # markov samples can be seeded by a provided string
+    if len(command_list) > 1:
+        seed = ' '.join(command_list[1:])
+
+    if seed:
+        response = joke.joke_with_seed(seed)
+    else:
+        response = joke.joke()
+
+    respond(response, channel)
 
 if __name__ == '__main__':
     # try to connect to slack
