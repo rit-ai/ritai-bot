@@ -12,7 +12,8 @@ if __name__ == '__main__':
         liner = item['body']
         samples.append(liner)
 
-    sample_string = ' '.join(samples).strip('\r\n\t')
+    sample_string = ' '.join(samples).replace('\n', ' ').replace('\r', '')
 
-    with open('wocka_raw.txt', 'w') as out:
+    with open('wocka.txt', 'w') as out:
         out.write(sample_string)
+
