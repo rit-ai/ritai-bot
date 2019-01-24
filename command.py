@@ -19,6 +19,8 @@ KMEANS_PROMPT = 'kmeans'
 MNIST_PROMPT = 'mnist'
 STYLIZE_PROMPT = 'stylize'
 
+HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
+
 def respond(message, channel, client):
     """
     Shorthand for posting a response
@@ -28,6 +30,27 @@ def respond(message, channel, client):
         channel=channel,
         text=message
     )
+
+def check_url(url):
+    """
+    Returns True if the url returns a response code between 200-300,
+    otherwise return False.
+
+    author: Matto Todd
+    """
+    
+    if url[0] == '<':
+        url = url[1:-1]
+
+    try:
+        response = requests.get(url, headers=HEADERS)
+    except ConnectionError:
+        return False
+
+    if response.status_code <= 200:
+        return True
+
+    return False
 
 def download_image(img_url):
     """
@@ -59,9 +82,7 @@ def bot_help(prompt, channel, client):
                 '\t@ritai kmeans\n' +\
                 '\t\tperforms k-means clustering over an image\n' +\
                 '\t@ritai mnist\n' +\
-                '\t\tguesses what number is in an image\n' +\
-                '\t@ritai stylize\n' +\
-                '\t\tapplies style transfer to an image\n'
+                '\t\tguesses what number is in an image\n'
     
     # specific responses to particular prompts
     if len(prompt_list) > 1:
@@ -88,22 +109,22 @@ def bot_mnist(prompt, channel, client):
     prompt_list = prompt.split(' ')
 
     img_url = None
-
+    
+    # print help message
+    if len(prompt_list) == 0:
+        respond(    
+                'usage:\n' +\
+                    '\t@ritai mnist\n' +\
+                    '\t\tguess what number is in attached image\n' +\
+                    '\t@ritai mnist [image_url]\n' +\
+                    '\t\tguess what number is in image in url\n',
+                channel,
+                client
+            )
+        return
     # was an image url provided?
     if len(prompt_list) > 1:
         img_url = prompt_list[1]
-    # print help message
-    else:
-        respond(    
-            'usage:\n' +\
-                '\t@ritai mnist\n' +\
-                '\t\tguess what number is in attached image\n' +\
-                '\t@ritai mnist [image_url]\n' +\
-                '\t\tguess what number is in image in url\n',
-            channel,
-            client
-        )
-        return
     # warn user if they entered too many arguments
     if len(prompt_list) > 2:
         respond('Invalid number of arguments: %d' % len(prompt_list), channel, client)
@@ -111,7 +132,7 @@ def bot_mnist(prompt, channel, client):
 
     # validate url
     if img_url and not check_url(img_url):
-        respond('Could not validate url. Are you sure it is correct?', channel, client)
+        respond('Could not validate url.', channel, client)
         return
     
     if img_url: download_image(img_url) 
@@ -138,25 +159,24 @@ def bot_kmeans(prompt, channel, client):
 
     img_url = None
     k_value = None
-
-    # was an k value provided?
-    if len(prompt_list) > 1:
-        k_value = prompt_list[1]
-        # print help message
-    else:
+    
+    # print help message
+    if len(prompt_list) == 0:
         respond(
             'usage:\n' +\
-                '\t@ritai kmeans\n' +\
-                '\t\tperforms k-means over the attached image and selects a random k-value\n'
                 '\t@ritai kmeans [k_value]\n' +\
                 '\t\tperform k-means over the attached image\n' +\
                 '\t@ritai kmeans [k_value] [image_url]\n' +\
-                '\t\tperform k-means over image in url\n' +\
-                '\tNOTE: k_value must be in range [1-10]\n',
+                '\t\tperform k-means over image denoted by url\n' +\
+                '\tNOTE: k_value must be in range [1-10]\n' +\
+                '\tNOTE: if k_value is not an integer, a random k_value will be chosen\n',
             channel,
             client
         )
         return
+    # was an k value provided?
+    if len(prompt_list) > 1:
+        k_value = prompt_list[1]
     # was a k value provided?
     if len(prompt_list) > 2:
         img_url = prompt_list[2]
@@ -165,32 +185,25 @@ def bot_kmeans(prompt, channel, client):
         respond('Invalid numer of arguments: %d' % len(prompt_list), channel)
         return
 
-    
     # validate url and k-value, as necessary
 
-    # if the url is only a few characters, it was probably the k value
-    if img_url and len(img_url) < 5:
-        k_value = img_url
-        img_url = None
-
     if img_url and not check_url(img_url):
-        respond('Could not validate url.', channel)
+        respond('Could not validate url.', channel, client)
         return
 
     if k_value:
         try:
             k_value = int(k_value)
+            if not (0 < k_value < 11):
+                respond('K value must be between 1 and 10 inclusive.', channel)
+                return
         except ValueError:
-            respond('K value must be an integer')
-            return
-        if not (0 < k_value < 11):
-            respond('K value must be between 1 and 10 inclusive.', channel)
-            return
-    else:
+            k_value = None
+    if not k_value:
         k_value = (int)(np.random.normal(7, 3))
         if k_value < 1: k_value = 1
         if k_value > 10: k_value = 10
-
+    
     # acquire image (if no url, assume image has already been downloaded)
     if img_url: download_image(img_url)
 

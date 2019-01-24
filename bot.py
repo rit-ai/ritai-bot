@@ -33,28 +33,6 @@ KMEANS_COMMAND  = 'kmeans'
 JOKE_COMMAND    = 'joke'
 STYLIZE_COMMAND = 'stylize'
 MENTION_REGEX = '^<@(|[WU].+?)>(.*)'
-HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
-
-def check_url(url):
-    """
-    Returns True if the url returns a response code between 200-300,
-    otherwise return False.
-
-    author: Matto Todd
-    """
-    
-    if url[0] == '<':
-        url = url[1:-1]
-
-    try:
-        response = requests.get(url, headers=HEADERS)
-    except ConnectionError:
-        return False
-
-    if response.status_code <= 200:
-        return True
-
-    return False
 
 def parse_bot_commands(slack_events):
     """
