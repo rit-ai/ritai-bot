@@ -12,13 +12,8 @@ import pdb
 import time
 
 # additional libraries
-import urllib
 import requests
 import traceback
-import validators
-import numpy as np
-from scipy import misc
-from io import BytesIO
 from slackclient import SlackClient
 
 # project-specific libraries
@@ -75,7 +70,7 @@ def parse_bot_commands(slack_events):
                 if 'files' in event:
                     # file is present
                     f = event['files'][0]
-                    download_image(f['url_private_download'])
+                    command.download_image(f['url_private_download'])
                 #try:
                 #    f = event['files'][0]
                 #    download_image(f['url_private_download'])
@@ -114,14 +109,14 @@ def handle_prompt(prompt, channel):
         elif prompt.startswith(KMEANS_COMMAND):
             command.bot_kmeans(prompt, channel, client)
 
-        elif command.startswith(MNIST_COMMAND):
-            command.bot_mnist(command, channel)
+        elif prompt.startswith(MNIST_COMMAND):
+            command.bot_mnist(prompt, channel, client)
 
-        elif command.startswith(JOKE_COMMAND):
-            command.bot_joke(command, channel)
-			
-		elif prompt.startswith(STYLIZE_COMMAND):
-			command.bot_stylize(prompt, channel, client)
+        elif prompt.startswith(JOKE_COMMAND):
+            command.bot_joke(prompt, channel, client)
+            
+        elif prompt.startswith(STYLIZE_COMMAND):
+            command.bot_stylize(prompt, channel, client)
 
         else:
             command.respond(default_response, channel, client)
@@ -134,7 +129,7 @@ def handle_prompt(prompt, channel):
         with open('elog.txt', 'a') as elog:
             elog.write(err + '\n\n')
         print(err)
-        respond(error_response, channel, client)
+        command.respond(error_response, channel, client)
 
 if __name__ == '__main__':
     # try to connect to slack
@@ -148,7 +143,7 @@ if __name__ == '__main__':
             prompt, channel = parse_bot_commands(client.rtm_read())
             if prompt:
                 print(prompt)
-            time.sleep(RTM_READ_DELAY)
                 handle_prompt(prompt, channel)
+            time.sleep(RTM_READ_DELAY)
     else:
         print('Connection failed. Exception traceback printed above.')

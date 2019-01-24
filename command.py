@@ -3,14 +3,21 @@
 # File for storing bot commands in a way that segments them from the rest of
 # the program. The commands are designed to be self-contained.
 
+import os
+
+import requests
+import numpy as np
+from scipy import misc
+from io import BytesIO
+
 from joke import joke
 from mnist import mnist
 from kmeans import kMeans
 
-HELP_COMMAND = 'help'
-KMEANS_COMMAND = 'kmeans'
-MNIST_COMMAND = 'mnist'
-STYLIZE_COMMAND = 'stylize'
+HELP_PROMPT = 'help'
+KMEANS_PROMPT = 'kmeans'
+MNIST_PROMPT = 'mnist'
+STYLIZE_PROMPT = 'stylize'
 
 def respond(message, channel, client):
     """
@@ -32,17 +39,18 @@ def download_image(img_url):
     if img_url[0] == '<':
         img_url = img_url[1:-1]
     
+    BOT_TOKEN = os.environ.get('APP_BOT_USER_TOKEN')
     headers = {'Authorization': 'Bearer %s' % BOT_TOKEN}
     response = requests.get(img_url, headers=headers)
     with open('in.png', 'wb') as image:
         image.write(response.content)
 
-def bot_help(command, channel, client):
+def bot_help(prompt, channel, client):
     """
-    Prints help command, in case the user would like to know more about a 
+    Prints help prompt, in case the user would like to know more about a 
     particular capability of the bot
     """
-    command_list = command.split(' ')
+    prompt_list = prompt.split(' ')
     
     # default response
     message =   'Available commands:\n' +\
@@ -52,54 +60,54 @@ def bot_help(command, channel, client):
                 '\t\tperforms k-means clustering over an image\n' +\
                 '\t@ritai mnist\n' +\
                 '\t\tguesses what number is in an image\n' +\
-				'\t@ritai stylize\n' +\
-				'\t\tapplies style transfer to an image\n'
+                '\t@ritai stylize\n' +\
+                '\t\tapplies style transfer to an image\n'
     
-    # specific responses to particular commands
-    if len(command_list) == 1:
-		respond(message, channel, client)
-	elif len(command_list) > 1:
-        if command_list[1] == HELP_COMMAND:
+    # specific responses to particular prompts
+    if len(prompt_list) > 1:
+        if prompt_list[1] == HELP_PROMPT:
             respond('Okay, now you\'re just being silly.', channel, client)
 
-        if command_list[1] == KMEANS_COMMAND:
+        elif prompt_list[1] == KMEANS_PROMPT:
             bot_kmeans('', channel, client)
         
-        if command_list[2] == MNIST_COMMAND:
+        elif prompt_list[1] == MNIST_PROMPT:
             bot_mnist('', channel, client)
-		
-		respond('Command not recognized.', channel, client)
-		
-	respond(message, channel, client)
+        
+        else:
+            respond('Command not recognized.', channel, client)
+         
+    else:
+        respond(message, channel, client)
 
-	
-def bot_mnist(command, channel, client):
+    
+def bot_mnist(prompt, channel, client):
     """
     Uses a rudimentary neural net to guess which number is in an image.
     """
-    command_list = command.split(' ')
+    prompt_list = prompt.split(' ')
 
     img_url = None
 
     # was an image url provided?
-    if len(command_list) > 1:
-        img_url = command_list[1]
-    # warn user if they entered too many arguments
-    if len(command_list) > 2:
-        respond('Invalid number of arguments: %d' % len(command_list), channel, client)
+    if len(prompt_list) > 1:
+        img_url = prompt_list[1]
+    # print help message
+    else:
+        respond(    
+            'usage:\n' +\
+                '\t@ritai mnist\n' +\
+                '\t\tguess what number is in attached image\n' +\
+                '\t@ritai mnist [image_url]\n' +\
+                '\t\tguess what number is in image in url\n',
+            channel,
+            client
+        )
         return
-	# print help message
-	else:
-		respond(	
-			message='usage:\n' +\
-				'\t@ritai mnist\n' +\
-				'\t\tguess what number is in latest attachment\n' +\
-				'\t@ritai mnist [image_url]\n' +\
-				'\t\tguess what number is in image in url\n',
-			channel,
-			client
-		)
-		return
+    # warn user if they entered too many arguments
+    if len(prompt_list) > 2:
+        respond('Invalid number of arguments: %d' % len(prompt_list), channel, client)
+        return
 
     # validate url
     if img_url and not check_url(img_url):
@@ -116,7 +124,7 @@ def bot_mnist(command, channel, client):
     respond('I think this is a... %d.' % prediction, channel, client)
 
 
-def bot_kmeans(command, channel, client):
+def bot_kmeans(prompt, channel, client):
     """
     Performs k-means clustering over a given image input (color simplification)
 
@@ -126,35 +134,37 @@ def bot_kmeans(command, channel, client):
     If a k value was provided, it uses that k value. Otherwise, it choses
     a random one.
     """
-    command_list = command.split(' ')
+    prompt_list = prompt.split(' ')
 
     img_url = None
     k_value = None
 
-    # was an image url provided?
-    if len(command_list) > 1:
-        img_url = command_list[1]
-    # was a k value provided?
-    if len(command_list) > 2:
-        k_value = command_list[2]
-    # warn the user if too many arguments were provided
-    if len(command_list) > 3:
-        respond('Invalid numer of arguments: %d' % len(command_list), channel)
+    # was an k value provided?
+    if len(prompt_list) > 1:
+        k_value = prompt_list[1]
+        # print help message
+    else:
+        respond(
+            'usage:\n' +\
+                '\t@ritai kmeans\n' +\
+                '\t\tperforms k-means over the attached image and selects a random k-value\n'
+                '\t@ritai kmeans [k_value]\n' +\
+                '\t\tperform k-means over the attached image\n' +\
+                '\t@ritai kmeans [k_value] [image_url]\n' +\
+                '\t\tperform k-means over image in url\n' +\
+                '\tNOTE: k_value must be in range [1-10]\n',
+            channel,
+            client
+        )
         return
-	# print help message
-	else:
-		respond(
-			message='usage:\n' +\
-				'\t@ritai kmeans [k_value]\n' +\
-				'\t\tperform k-means over latest attachment\n' +\
-				'\t@ritai kmeans [image_url] [k_value]\n' +\
-				'\t\tperform k-means over image in url\n' +\
-				'\tNOTE: k_value must be in range [1-10]\n' +\
-				'\tNOTE: omit k_value to have it chosen randomly',
-			channel,
-			client
-		)
-		return
+    # was a k value provided?
+    if len(prompt_list) > 2:
+        img_url = prompt_list[2]
+    # warn the user if too many arguments were provided
+    if len(prompt_list) > 3:
+        respond('Invalid numer of arguments: %d' % len(prompt_list), channel)
+        return
+
     
     # validate url and k-value, as necessary
 
@@ -199,22 +209,22 @@ def bot_kmeans(command, channel, client):
             initial_comment=('k: %d' % k_value),
             file=f
         )
-		
-def bot_joke(command, channel, client):
+        
+def bot_joke(prompt, channel, client):
     """
     Has the bot try to tell a joke using a joke database and a Markov chain.
 
     The user can provide a seed if desired.
     """
 
-    command_list = command.split(' ')
+    prompt_list = prompt.split(' ')
 
     seed = None
     response = None
 
     # markov samples can be seeded by a provided string
-    if len(command_list) > 1:
-        seed = ' '.join(command_list[1:])
+    if len(prompt_list) > 1:
+        seed = ' '.join(prompt_list[1:])
 
     if seed:
         response = joke.joke_with_seed(seed)
@@ -223,5 +233,5 @@ def bot_joke(command, channel, client):
 
     respond(response, channel, client)
 
-def bot_stylize(command, channel, client):
-	respond('Stylize command received!', channel, client)
+def bot_stylize(prompt, channel, client):
+    respond('Stylize prompt received!', channel, client)
