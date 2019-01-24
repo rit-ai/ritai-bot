@@ -26,6 +26,8 @@ client = SlackClient(BOT_TOKEN)
 bot_name = None
 
 # constants
+VERSION         = '0.4'
+
 RTM_READ_DELAY  = 2 # second delay between reading from RTM
 HELP_COMMAND    = 'help'
 MNIST_COMMAND   = 'mnist'

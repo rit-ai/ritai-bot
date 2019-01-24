@@ -10,6 +10,7 @@ import numpy as np
 from scipy import misc
 from io import BytesIO
 
+from bot import VERSION
 from joke import joke
 from mnist import mnist
 from kmeans import kMeans
@@ -76,7 +77,7 @@ def bot_help(prompt, channel, client):
     prompt_list = prompt.split(' ')
     
     # default response
-    message =   'Available commands:\n' +\
+    message =   'RITAI VERSION [%s]:\n' % VERSION +\
                 '\t@ritai help [command]\n' +\
                 '\t\tprints this message, or more info about a command\n' +\
                 '\t@ritai kmeans\n' +\
