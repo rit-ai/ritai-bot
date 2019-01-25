@@ -4,6 +4,7 @@
 # the program. The commands are designed to be self-contained.
 
 import os
+import random
 
 import requests
 import numpy as np
@@ -14,6 +15,7 @@ from bot import VERSION
 from joke import joke
 from mnist import mnist
 from kmeans import kMeans
+from neural_style_transfer.neural_style_driver import style_transfer
 
 HELP_PROMPT = 'help'
 KMEANS_PROMPT = 'kmeans'
@@ -223,7 +225,71 @@ def bot_kmeans(prompt, channel, client):
             initial_comment=('k: %d' % k_value),
             file=f
         )
+
+def bot_stylize(prompt, channel, client):
+    """
+    Applies style transfer to an image using a neural network.
+    """
+    
+    prompt_list = prompt.split(' ')
+    
+    STYLES = ['composition_vii', 'la_muse', 'starry_night', 'the_wave']
+    
+    style = None
+    img_url = None
+    
+    if len(prompt_list) == 0:
+        respond(
+            'usage:\n' +\
+                '\tTODO',
+            channel,
+            client
+        )
+        return
+    if len(prompt_list) > 1:
+        desire = prompt_list[1].lower()
+        if desire in STYLES:
+            style = desire
+        else:
+            respond(
+                'I don\'t recognize the style %s. Try @ritai help ' +\
+                'stylize for available styles.',
+                channel,
+                client
+            )
+            return
+    if len(prompt_list) > 2:
+        img_url = prompt_list[2]
+    if len(prompt_list) > 3:
+        respond('Invalid numer of arguments: %d' % len(prompt_list), channel)
+        return
+    
+    if img_url and not check_url(img_url):
+        respond('Could not validate url.', channel, client)
+        return
         
+    # acquire image (if no url, assume image has already been downloaded)
+    if img_url: download_image(img_url)
+    
+    if not style:
+        style = random.choice(STYLES)
+    
+    ckpt = 'neural_style_transfer/models/eccv16/%s.t7' % style
+    
+    style_transfer('in.png', ckpt)
+    
+    # post image to channel
+    with open('out.png', 'rb') as f:
+        client.api_call(
+            'files.upload',
+            channels=[channel],
+            filename='out.png',
+            title='output',
+            initial_comment=('style: %s' % style),
+            file=f
+        )
+    
+    
 def bot_joke(prompt, channel, client):
     """
     Has the bot try to tell a joke using a joke database and a Markov chain.
@@ -246,6 +312,3 @@ def bot_joke(prompt, channel, client):
         response = joke.joke()
 
     respond(response, channel, client)
-
-def bot_stylize(prompt, channel, client):
-    respond('Stylize prompt received!', channel, client)
