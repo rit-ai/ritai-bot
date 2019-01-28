@@ -15,7 +15,7 @@ from bot import VERSION
 from joke import joke
 from mnist import mnist
 from kmeans import kMeans
-from neural_style_transfer.neural_style_driver import style_transfer
+from neural_style_transfer.neural_style_transfer import style_transfer
 
 HELP_PROMPT = 'help'
 KMEANS_PROMPT = 'kmeans'
