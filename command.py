@@ -85,7 +85,9 @@ def bot_help(prompt, channel, client):
                 '\t@ritai kmeans\n' +\
                 '\t\tperforms k-means clustering over an image\n' +\
                 '\t@ritai mnist\n' +\
-                '\t\tguesses what number is in an image\n'
+                '\t\tguesses what number is in an image\n' +\
+                '\t@ritai stylize\n' +\
+                '\t\tapplies neural style transfer to an image\n'
     
     # specific responses to particular prompts
     if len(prompt_list) > 1:
@@ -93,10 +95,13 @@ def bot_help(prompt, channel, client):
             respond('Okay, now you\'re just being silly.', channel, client)
 
         elif prompt_list[1] == KMEANS_PROMPT:
-            bot_kmeans('', channel, client)
+            bot_kmeans(HELP_PROMPT, channel, client)
         
         elif prompt_list[1] == MNIST_PROMPT:
-            bot_mnist('', channel, client)
+            bot_mnist(HELP_PROMPT, channel, client)
+            
+        elif prompt_list[1] == STYLIZE_PROMPT:
+            bot_stylize(HELP_PROMPT, channel, client)
         
         else:
             respond('Command not recognized.', channel, client)
@@ -114,7 +119,7 @@ def bot_mnist(prompt, channel, client):
     img_url = None
     
     # print help message
-    if len(prompt_list) == 0:
+    if prompt_list[0] == HELP_PROMPT:
         respond(    
                 'usage:\n' +\
                     '\t@ritai mnist\n' +\
@@ -164,7 +169,7 @@ def bot_kmeans(prompt, channel, client):
     k_value = None
     
     # print help message
-    if len(prompt_list) == 0:
+    if prompt_list[0] == HELP_PROMPT:
         respond(
             'usage:\n' +\
                 '\t@ritai kmeans [k_value]\n' +\
@@ -233,19 +238,28 @@ def bot_stylize(prompt, channel, client):
     
     prompt_list = prompt.split(' ')
     
-    STYLES = ['composition_vii', 'la_muse', 'starry_night', 'the_wave']
+    STYLES = ['candy', 'composition_vii', 'feathers', 'la_muse', 'mosaic', 'starry_night', 'the_scream', 'the_wave', 'udnie']
     
     style = None
     img_url = None
     
-    if len(prompt_list) == 0:
+    # print help message
+    if prompt_list[0] == HELP_PROMPT:
         respond(
             'usage:\n' +\
-                '\tTODO',
+                '\t@ritai stylize\n' +\
+                '\t\tStylize attached image with random style\n' +\
+                '\t@ritai stylize [style]\n' +\
+                '\t\tStylize attached image with a specific style\n' +\
+                '\t@ritai stylize [style] [img_url]\n' +\
+                '\t\tStylize image in URL with a specific style\n' +\
+                '\tNOTE: valid styles include:\n' +\
+                '\t' + str(STYLES) + '\n',
             channel,
             client
         )
         return
+    # what style does the user want?
     if len(prompt_list) > 1:
         desire = prompt_list[1].lower()
         if desire in STYLES:
@@ -258,8 +272,10 @@ def bot_stylize(prompt, channel, client):
                 client
             )
             return
+    # did the user provide a url in addition to a style?
     if len(prompt_list) > 2:
         img_url = prompt_list[2]
+    # warn the user if they provided too many arguments
     if len(prompt_list) > 3:
         respond('Invalid numer of arguments: %d' % len(prompt_list), channel)
         return
@@ -274,8 +290,9 @@ def bot_stylize(prompt, channel, client):
     if not style:
         style = random.choice(STYLES)
     
-    ckpt = 'neural_style_transfer/models/eccv16/%s.t7' % style
+    ckpt = 'neural_style_transfer/models/%s.t7' % style
     
+    # perform style transfer
     style_transfer('in.png', ckpt)
     
     # post image to channel
