@@ -9,7 +9,16 @@ import os
 import imutils
 import cv2
 
-import utils
+MODEL_DIR = 'models/'
+
+def parse_args():
+    '''construct the argument parser and parse the arguments'''
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-m", "--model", required=False,
+        help="neural style transfer model")
+    ap.add_argument("-i", "--im_name", required=True,
+        help="name of input image to apply neural style transfer to")
+    return ap.parse_args()
 
 def style_transfer(im_name, ckpt):
     '''
@@ -21,8 +30,8 @@ def style_transfer(im_name, ckpt):
     '''
     # if no model is chosen, then choose a random one
     if not ckpt:
-        models = os.listdir(utils.MODEL_DIR)
-        ckpt = utils.MODEL_DIR + random.choice(models)
+        models = os.listdir(MODEL_DIR)
+        ckpt = MODEL_DIR + random.choice(models)
     
     # load the neural style transfer model from disk
     # print("[INFO] loading style transfer model...")
@@ -57,7 +66,7 @@ def style_transfer(im_name, ckpt):
     return image, output
 
 if __name__ == '__main__':
-    args = utils.parse_args()
+    args = parse_args()
     
     image, output = style_transfer(args.im_name, args.model)
     

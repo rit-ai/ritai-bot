@@ -7,15 +7,21 @@ import os
 import imutils
 import cv2
 
-import utils
-
 IM_DIMS = (240, 240)
 MONTAGE_SHAPE = (5, 2)
+MODEL_DIR = 'models/'
+
+def parse_args():
+    '''construct the argument parser and parse the arguments'''
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-i", "--im_name", required=True,
+        help="name of input image to apply neural style transfer to")
+    return ap.parse_args()
     
 if __name__ == '__main__':
-    args = utils.parse_args()
+    args = parse_args()
     
-    models = [utils.MODEL_DIR + name for name in os.listdir(utils.MODEL_DIR)]
+    models = [MODEL_DIR + name for name in os.listdir(MODEL_DIR)]
     im_name = args.im_name
     out_imgs = []
     
