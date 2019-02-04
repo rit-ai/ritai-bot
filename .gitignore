@@ -2,3 +2,5 @@
 *.swp
 *.sh
 Pipfile
+
+__pycache__
