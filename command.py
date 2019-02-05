@@ -266,8 +266,8 @@ def bot_stylize(prompt, channel, client):
             style = desire
         else:
             respond(
-                'I don\'t recognize the style %s. Try @ritai help ' +\
-                'stylize for available styles.' % desire,
+                'I don\'t recognize the style %s. Try @ritai help ' % desire +\
+                'stylize for available styles.',
                 channel,
                 client
             )
