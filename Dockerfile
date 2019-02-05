@@ -16,6 +16,8 @@ ADD . /opt/app-root
 
 RUN chown -R 1001:0 /opt/app-root 
 
+RUN chmod -R a+rw /opt
+
 USER 1001
 
 CMD ["./start.sh"]
