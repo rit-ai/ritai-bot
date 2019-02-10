@@ -20,7 +20,7 @@ def parse_args():
         help="name of input image to apply neural style transfer to")
     return ap.parse_args()
 
-def style_transfer(im_name, ckpt):
+def style_transfer(image, ckpt):
     '''
     Applies style tranfer.
     
@@ -37,9 +37,10 @@ def style_transfer(im_name, ckpt):
     # print("[INFO] loading style transfer model...")
     net = cv2.dnn.readNetFromTorch(ckpt)
     
-    # load the input image, resize it to have a width of 600 pixels, and
+    # resize the image to have a width of 600 pixels, and
     # then grab the image dimensions
-    image = cv2.imread(im_name)
+    #image = cv2.imread(im_name)
+
     image = imutils.resize(image, width=600)
     (h, w) = image.shape[:2]
     
@@ -61,14 +62,16 @@ def style_transfer(im_name, ckpt):
     
     # print("[INFO] neural style transfer took {:.4f} seconds".format(end - start))
     
-    cv2.imwrite('out.png', output * 255)
-    
-    return image, output
+    return image * 255, output * 255
 
 if __name__ == '__main__':
     args = parse_args()
     
-    image, output = style_transfer(args.im_name, args.model)
+    img_in = cv2.imread(args.im_name)
+    
+    image, output = style_transfer(img_in, args.model)
+    
+    cv2.imwrite('out.png', output)
     
     # show the images
     cv2.imshow("Input", image)

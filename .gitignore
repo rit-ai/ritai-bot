@@ -1,6 +1,9 @@
 *.png
+!default.png
 *.swp
 *.sh
+*.txt
+*.gz
 Pipfile
 
 __pycache__

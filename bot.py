@@ -17,31 +17,20 @@ import traceback
 from slackclient import SlackClient
 
 # project-specific libraries
+import const
 import command
 
 # instantiate Slack client
-BOT_TOKEN = os.environ.get('APP_BOT_USER_TOKEN')
-client = SlackClient(BOT_TOKEN)
+client = SlackClient(const.BOT_TOKEN)
 # starterbot's user ID in Slack: value is assigned after the bot starts up
 bot_name = None
 
-# constants
-VERSION         = '0.4'
-
-RTM_READ_DELAY  = 2 # second delay between reading from RTM
-HELP_COMMAND    = 'help'
-MNIST_COMMAND   = 'mnist'
-KMEANS_COMMAND  = 'kmeans'
-JOKE_COMMAND    = 'joke'
-STYLIZE_COMMAND = 'stylize'
-MENTION_REGEX = '^<@(|[WU].+?)>(.*)'
-
 def parse_bot_commands(slack_events):
-    """
+    '''
     Parses a list of events coming from the Slack RTM API to find bot commands.
     If a bot prompt is found, this function returns a tuple of prompt and 
     channel. If its not found, then this function returns None, None.
-    """
+    '''
     for event in slack_events:
         if event['type'] == 'message' and not 'subtype' in event:
             user_name, message = parse_direct_mention(event['text'])
@@ -61,12 +50,12 @@ def parse_bot_commands(slack_events):
     return None, None
 
 def parse_direct_mention(message_text):
-    """
+    '''
     Finds a direct mention (a mention that is at the beginning) in message text
     and returns the user ID which was mentioned. If there is no direct mention, 
     returns None
-    """
-    matches = re.search(MENTION_REGEX, message_text)
+    '''
+    matches = re.search(const.MENTION_REGEX, message_text)
     # the first group contains the username
     # the second group contains the remaining message
     if matches:
@@ -75,27 +64,28 @@ def parse_direct_mention(message_text):
         return (None, None)
 
 def handle_prompt(prompt, channel):
-    """
-    Executes bot prompt if the prompt is known
-    """
+    '''
+    Executes bot prompt if the prompt is known. The bot runs continuously and 
+    logs errors to a file.
+    '''
     # Default response is help text for the user
-    default_response = 'Unknown prompt. Try @ritai {}'.format(KMEANS_COMMAND)
+    default_response = 'Unknown prompt. Try @ritai {}'.format(const.HELP_PROMPT)
     error_response = 'There\'s been an error. Whoops, please edit.'
 
     try:
-        if prompt.startswith(HELP_COMMAND):
+        if prompt.startswith(const.HELP_PROMPT):
             command.bot_help(prompt, channel, client)
 
-        elif prompt.startswith(KMEANS_COMMAND):
+        elif prompt.startswith(const.KMEANS_PROMPT):
             command.bot_kmeans(prompt, channel, client)
 
-        elif prompt.startswith(MNIST_COMMAND):
+        elif prompt.startswith(const.MNIST_PROMPT):
             command.bot_mnist(prompt, channel, client)
 
-        elif prompt.startswith(JOKE_COMMAND):
+        elif prompt.startswith(const.JOKE_PROMPT):
             command.bot_joke(prompt, channel, client)
             
-        elif prompt.startswith(STYLIZE_COMMAND):
+        elif prompt.startswith(const.STYLIZE_PROMPT):
             command.bot_stylize(prompt, channel, client)
 
         else:
@@ -124,6 +114,6 @@ if __name__ == '__main__':
             if prompt:
                 print(prompt)
                 handle_prompt(prompt, channel)
-            time.sleep(RTM_READ_DELAY)
+            time.sleep(const.RTM_READ_DELAY)
     else:
         print('Connection failed. Exception traceback printed above.')

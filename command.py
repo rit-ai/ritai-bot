@@ -11,23 +11,16 @@ import numpy as np
 from scipy import misc
 from io import BytesIO
 
-from bot import VERSION
+import const
 from joke import joke
 from mnist import mnist
 from kmeans import kMeans
 from neural_style_transfer.neural_style_transfer import style_transfer
 
-HELP_PROMPT = 'help'
-KMEANS_PROMPT = 'kmeans'
-MNIST_PROMPT = 'mnist'
-STYLIZE_PROMPT = 'stylize'
-
-HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
-
 def respond(message, channel, client):
-    """
+    '''
     Shorthand for posting a response
-    """
+    '''
     client.api_call(
         'chat.postMessage',
         channel=channel,
@@ -35,12 +28,12 @@ def respond(message, channel, client):
     )
 
 def check_url(url):
-    """
+    '''
     Returns True if the url returns a response code between 200-300,
     otherwise return False.
 
     author: Matto Todd
-    """
+    '''
     
     if url[0] == '<':
         url = url[1:-1]
@@ -56,30 +49,51 @@ def check_url(url):
     return False
 
 def download_image(img_url):
-    """
+    '''
     Download an image from a url
-    """
+    '''
 
     # sometimes slack packages urls in messages in brackets
     # these will cause an error unless we remove them
     if img_url[0] == '<':
         img_url = img_url[1:-1]
     
-    BOT_TOKEN = os.environ.get('APP_BOT_USER_TOKEN')
-    headers = {'Authorization': 'Bearer %s' % BOT_TOKEN}
+    const.BOT_TOKEN = os.environ.get('APP_BOT_USER_TOKEN')
+    headers = {'Authorization': 'Bearer %s' % const.BOT_TOKEN}
     response = requests.get(img_url, headers=headers)
-    with open('in.png', 'wb') as image:
+    with open(const.IN_IMG_NAME, 'wb') as image:
         image.write(response.content)
+        
+def upload_image(comment, channel, client):
+    '''post image to channel'''
+    with open(const.OUT_IMG_NAME, 'rb') as f:
+        client.api_call(
+            'files.upload',
+            channels=[channel],
+            filename=const.OUT_IMG_NAME,
+            title='output',
+            initial_comment=comment,
+            file=f
+        )
+        
+def read_image(fname):
+    '''
+    Reads in an image. If the image is not present, it returns a default image.
+    '''
+    try:
+        return misc.imread(const.IN_IMG_NAME)
+    except FileNotFoundError:
+        return misc.imread(const.DEFAULT_IMG_NAME)
 
 def bot_help(prompt, channel, client):
-    """
+    '''
     Prints help prompt, in case the user would like to know more about a 
     particular capability of the bot
-    """
+    '''
     prompt_list = prompt.split(' ')
     
     # default response
-    message =   'RITAI VERSION [%s]:\n' % VERSION +\
+    message =   'RITAI VERSION [%s]:\n' % const.VERSION +\
                 '\t@ritai help [command]\n' +\
                 '\t\tprints this message, or more info about a command\n' +\
                 '\t@ritai kmeans\n' +\
@@ -91,17 +105,17 @@ def bot_help(prompt, channel, client):
     
     # specific responses to particular prompts
     if len(prompt_list) > 1:
-        if prompt_list[1] == HELP_PROMPT:
+        if prompt_list[1] == const.HELP_PROMPT:
             respond('Okay, now you\'re just being silly.', channel, client)
 
-        elif prompt_list[1] == KMEANS_PROMPT:
-            bot_kmeans(HELP_PROMPT, channel, client)
+        elif prompt_list[1] == const.KMEANS_PROMPT:
+            bot_kmeans(const.HELP_PROMPT, channel, client)
         
-        elif prompt_list[1] == MNIST_PROMPT:
-            bot_mnist(HELP_PROMPT, channel, client)
+        elif prompt_list[1] == const.MNIST_PROMPT:
+            bot_mnist(const.HELP_PROMPT, channel, client)
             
-        elif prompt_list[1] == STYLIZE_PROMPT:
-            bot_stylize(HELP_PROMPT, channel, client)
+        elif prompt_list[1] == const.STYLIZE_PROMPT:
+            bot_stylize(const.HELP_PROMPT, channel, client)
         
         else:
             respond('Command not recognized.', channel, client)
@@ -111,15 +125,15 @@ def bot_help(prompt, channel, client):
 
     
 def bot_mnist(prompt, channel, client):
-    """
+    '''
     Uses a rudimentary neural net to guess which number is in an image.
-    """
+    '''
     prompt_list = prompt.split(' ')
 
     img_url = None
     
     # print help message
-    if prompt_list[0] == HELP_PROMPT:
+    if prompt_list[0] == const.HELP_PROMPT:
         respond(    
                 'usage:\n' +\
                     '\t@ritai mnist\n' +\
@@ -146,7 +160,7 @@ def bot_mnist(prompt, channel, client):
     if img_url: download_image(img_url) 
     
     # perform mnist
-    img = misc.imread('in.png', flatten=True)
+    img = misc.imread(const.IN_IMG_NAME, flatten=True)
     prediction = mnist.query(img)
 
     # report prediction
@@ -154,7 +168,7 @@ def bot_mnist(prompt, channel, client):
 
 
 def bot_kmeans(prompt, channel, client):
-    """
+    '''
     Performs k-means clustering over a given image input (color simplification)
 
     If an image URL is provided, it attempts to download from that URL. 
@@ -162,14 +176,14 @@ def bot_kmeans(prompt, channel, client):
 
     If a k value was provided, it uses that k value. Otherwise, it choses
     a random one.
-    """
+    '''
     prompt_list = prompt.split(' ')
 
     img_url = None
     k_value = None
     
     # print help message
-    if prompt_list[0] == HELP_PROMPT:
+    if prompt_list[0] == const.HELP_PROMPT:
         respond(
             'usage:\n' +\
                 '\t@ritai kmeans [k_value]\n' +\
@@ -216,25 +230,16 @@ def bot_kmeans(prompt, channel, client):
     if img_url: download_image(img_url)
 
     # perform kMeans
-    im = misc.imread('in.png')
-    newIm = kMeans(im, k_value)
-    misc.imsave('out.png', newIm)
-
-    # post image to channel
-    with open('out.png', 'rb') as f:
-        client.api_call(
-            'files.upload',
-            channels=[channel],
-            filename='out.png',
-            title='output',
-            initial_comment=('k: %d' % k_value),
-            file=f
-        )
+    img = read_image(const.IN_IMG_NAME)
+    output = kMeans(img, k_value)
+    misc.imsave(const.OUT_IMG_NAME, output)
+    
+    upload_image(('k: %d' % k_value), channel, client)
 
 def bot_stylize(prompt, channel, client):
-    """
+    '''
     Applies style transfer to an image using a neural network.
-    """
+    '''
     
     prompt_list = prompt.split(' ')
     
@@ -244,7 +249,7 @@ def bot_stylize(prompt, channel, client):
     img_url = None
     
     # print help message
-    if prompt_list[0] == HELP_PROMPT:
+    if prompt_list[0] == const.HELP_PROMPT:
         respond(
             'usage:\n' +\
                 '\t@ritai stylize\n' +\
@@ -293,26 +298,19 @@ def bot_stylize(prompt, channel, client):
     ckpt = 'neural_style_transfer/models/%s.t7' % style
     
     # perform style transfer
-    style_transfer('in.png', ckpt)
+    img = read_image(const.IN_IMG_NAME)
+    _, output = style_transfer(img, ckpt)
+    misc.imsave(const.OUT_IMG_NAME, output)
     
     # post image to channel
-    with open('out.png', 'rb') as f:
-        client.api_call(
-            'files.upload',
-            channels=[channel],
-            filename='out.png',
-            title='output',
-            initial_comment=('style: %s' % style),
-            file=f
-        )
-    
+    upload_image(('style: %s' % style), channel, client)
     
 def bot_joke(prompt, channel, client):
-    """
+    '''
     Has the bot try to tell a joke using a joke database and a Markov chain.
 
     The user can provide a seed if desired.
-    """
+    '''
 
     prompt_list = prompt.split(' ')
 
