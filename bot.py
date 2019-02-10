@@ -35,19 +35,22 @@ def parse_bot_commands(slack_events):
         if event['type'] == 'message' and not 'subtype' in event:
             user_name, message = parse_direct_mention(event['text'])
             if user_name == bot_name:
+                # print(event)
+            
                 # download a file if it was present in the message
                 if 'files' in event:
                     # file is present
                     f = event['files'][0]
                     command.download_image(f['url_private_download'])
-                #try:
-                #    f = event['files'][0]
-                #    download_image(f['url_private_download'])
-                #except KeyError:
-                #    # no file is present in the message
-                #    pass
-                return message, event['channel']
-    return None, None
+                
+                # reply to the parent thread, not the child thread
+                if 'thread_ts' in event:
+                    thread = event['thread_ts']
+                else:
+                    thread = event['ts']
+
+                return message, event['channel'], thread
+    return None, None, None
 
 def parse_direct_mention(message_text):
     '''
@@ -63,7 +66,7 @@ def parse_direct_mention(message_text):
     else:
         return (None, None)
 
-def handle_prompt(prompt, channel):
+def handle_prompt(prompt, channel, thread):
     '''
     Executes bot prompt if the prompt is known. The bot runs continuously and 
     logs errors to a file.
@@ -74,22 +77,22 @@ def handle_prompt(prompt, channel):
 
     try:
         if prompt.startswith(const.HELP_PROMPT):
-            command.bot_help(prompt, channel, client)
+            command.bot_help(prompt, channel, client, thread)
 
         elif prompt.startswith(const.KMEANS_PROMPT):
-            command.bot_kmeans(prompt, channel, client)
+            command.bot_kmeans(prompt, channel, client, thread)
 
         elif prompt.startswith(const.MNIST_PROMPT):
-            command.bot_mnist(prompt, channel, client)
+            command.bot_mnist(prompt, channel, client, thread)
 
         elif prompt.startswith(const.JOKE_PROMPT):
-            command.bot_joke(prompt, channel, client)
+            command.bot_joke(prompt, channel, client, thread)
             
         elif prompt.startswith(const.STYLIZE_PROMPT):
-            command.bot_stylize(prompt, channel, client)
+            command.bot_stylize(prompt, channel, client, thread)
 
         else:
-            command.respond(default_response, channel, client)
+            command.respond(default_response, channel, client, thread)
     except Exception:
         # we don't want the bot to crash because we cannot easily restart it
         # this default response will at least make us aware that there's an 
@@ -99,7 +102,7 @@ def handle_prompt(prompt, channel):
         with open('elog.txt', 'a') as elog:
             elog.write(err + '\n\n')
         print(err)
-        command.respond(error_response, channel, client)
+        command.respond(error_response, channel, client, thread)
 
 if __name__ == '__main__':
     # try to connect to slack
@@ -110,10 +113,10 @@ if __name__ == '__main__':
         print('ritai-bot connected and running!')
         while True:
             # loop forever, checking for mentions every RTM_READ_DELAY
-            prompt, channel = parse_bot_commands(client.rtm_read())
+            prompt, channel, thread = parse_bot_commands(client.rtm_read())
             if prompt:
                 print(prompt)
-                handle_prompt(prompt, channel)
+                handle_prompt(prompt, channel, thread)
             time.sleep(const.RTM_READ_DELAY)
     else:
         print('Connection failed. Exception traceback printed above.')

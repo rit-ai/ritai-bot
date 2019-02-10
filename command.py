@@ -17,14 +17,15 @@ from mnist import mnist
 from kmeans import kMeans
 from neural_style_transfer.neural_style_transfer import style_transfer
 
-def respond(message, channel, client):
+def respond(message, channel, client, thread):
     '''
     Shorthand for posting a response
     '''
     client.api_call(
         'chat.postMessage',
         channel=channel,
-        text=message
+        text=message,
+        thread_ts=thread
     )
 
 def check_url(url):
@@ -64,7 +65,7 @@ def download_image(img_url):
     with open(const.IN_IMG_NAME, 'wb') as image:
         image.write(response.content)
         
-def upload_image(comment, channel, client):
+def upload_image(comment, channel, client, thread):
     '''post image to channel'''
     with open(const.OUT_IMG_NAME, 'rb') as f:
         client.api_call(
@@ -73,7 +74,8 @@ def upload_image(comment, channel, client):
             filename=const.OUT_IMG_NAME,
             title='output',
             initial_comment=comment,
-            file=f
+            file=f,
+            thread_ts=thread
         )
         
 def read_image(fname):
@@ -85,7 +87,7 @@ def read_image(fname):
     except FileNotFoundError:
         return misc.imread(const.DEFAULT_IMG_NAME)
 
-def bot_help(prompt, channel, client):
+def bot_help(prompt, channel, client, thread):
     '''
     Prints help prompt, in case the user would like to know more about a 
     particular capability of the bot
@@ -106,25 +108,25 @@ def bot_help(prompt, channel, client):
     # specific responses to particular prompts
     if len(prompt_list) > 1:
         if prompt_list[1] == const.HELP_PROMPT:
-            respond('Okay, now you\'re just being silly.', channel, client)
+            respond('Okay, now you\'re just being silly.', channel, client, thread)
 
         elif prompt_list[1] == const.KMEANS_PROMPT:
-            bot_kmeans(const.HELP_PROMPT, channel, client)
+            bot_kmeans(const.HELP_PROMPT, channel, client, thread)
         
         elif prompt_list[1] == const.MNIST_PROMPT:
-            bot_mnist(const.HELP_PROMPT, channel, client)
+            bot_mnist(const.HELP_PROMPT, channel, client, thread)
             
         elif prompt_list[1] == const.STYLIZE_PROMPT:
-            bot_stylize(const.HELP_PROMPT, channel, client)
+            bot_stylize(const.HELP_PROMPT, channel, client, thread)
         
         else:
-            respond('Command not recognized.', channel, client)
+            respond('Command not recognized.', channel, client, thread)
          
     else:
-        respond(message, channel, client)
+        respond(message, channel, client, thread)
 
     
-def bot_mnist(prompt, channel, client):
+def bot_mnist(prompt, channel, client, thread):
     '''
     Uses a rudimentary neural net to guess which number is in an image.
     '''
@@ -149,12 +151,12 @@ def bot_mnist(prompt, channel, client):
         img_url = prompt_list[1]
     # warn user if they entered too many arguments
     if len(prompt_list) > 2:
-        respond('Invalid number of arguments: %d' % len(prompt_list), channel, client)
+        respond('Invalid number of arguments: %d' % len(prompt_list), channel, client, thread)
         return
 
     # validate url
     if img_url and not check_url(img_url):
-        respond('Could not validate url.', channel, client)
+        respond('Could not validate url.', channel, client, thread)
         return
     
     if img_url: download_image(img_url) 
@@ -164,10 +166,10 @@ def bot_mnist(prompt, channel, client):
     prediction = mnist.query(img)
 
     # report prediction
-    respond('I think this is a... %d.' % prediction, channel, client)
+    respond('I think this is a... %d.' % prediction, channel, client, thread)
 
 
-def bot_kmeans(prompt, channel, client):
+def bot_kmeans(prompt, channel, client, thread):
     '''
     Performs k-means clustering over a given image input (color simplification)
 
@@ -204,20 +206,20 @@ def bot_kmeans(prompt, channel, client):
         img_url = prompt_list[2]
     # warn the user if too many arguments were provided
     if len(prompt_list) > 3:
-        respond('Invalid numer of arguments: %d' % len(prompt_list), channel)
+        respond('Invalid numer of arguments: %d' % len(prompt_list), channel, thread)
         return
 
     # validate url and k-value, as necessary
 
     if img_url and not check_url(img_url):
-        respond('Could not validate url.', channel, client)
+        respond('Could not validate url.', channel, client, thread)
         return
 
     if k_value:
         try:
             k_value = int(k_value)
             if not (0 < k_value < 11):
-                respond('K value must be between 1 and 10 inclusive.', channel)
+                respond('K value must be between 1 and 10 inclusive.', channel, thread)
                 return
         except ValueError:
             k_value = None
@@ -234,9 +236,9 @@ def bot_kmeans(prompt, channel, client):
     output = kMeans(img, k_value)
     misc.imsave(const.OUT_IMG_NAME, output)
     
-    upload_image(('k: %d' % k_value), channel, client)
+    upload_image(('k: %d' % k_value), channel, client, thread)
 
-def bot_stylize(prompt, channel, client):
+def bot_stylize(prompt, channel, client, thread):
     '''
     Applies style transfer to an image using a neural network.
     '''
@@ -282,11 +284,11 @@ def bot_stylize(prompt, channel, client):
         img_url = prompt_list[2]
     # warn the user if they provided too many arguments
     if len(prompt_list) > 3:
-        respond('Invalid numer of arguments: %d' % len(prompt_list), channel)
+        respond('Invalid numer of arguments: %d' % len(prompt_list), channel, client, thread)
         return
     
     if img_url and not check_url(img_url):
-        respond('Could not validate url.', channel, client)
+        respond('Could not validate url.', channel, client, thread)
         return
         
     # acquire image (if no url, assume image has already been downloaded)
@@ -303,9 +305,9 @@ def bot_stylize(prompt, channel, client):
     misc.imsave(const.OUT_IMG_NAME, output)
     
     # post image to channel
-    upload_image(('style: %s' % style), channel, client)
+    upload_image(('style: %s' % style), channel, client, thread)
     
-def bot_joke(prompt, channel, client):
+def bot_joke(prompt, channel, client, thread):
     '''
     Has the bot try to tell a joke using a joke database and a Markov chain.
 
@@ -326,4 +328,4 @@ def bot_joke(prompt, channel, client):
     else:
         response = joke.joke()
 
-    respond(response, channel, client)
+    respond(response, channel, client, thread)
