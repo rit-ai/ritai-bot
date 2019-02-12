@@ -6,6 +6,7 @@
 import os
 import random
 
+import cv2
 import requests
 import numpy as np
 from scipy import misc
@@ -78,14 +79,24 @@ def upload_image(comment, channel, client, thread):
             thread_ts=thread
         )
         
-def read_image(fname):
+def read_image(fname, format='scipy'):
     '''
     Reads in an image. If the image is not present, it returns a default image.
     '''
     try:
-        return misc.imread(const.IN_IMG_NAME)
+        if format == 'scipy':
+            return misc.imread(fname)
+        if format == 'opencv':
+            return cv2.imread(fname)
+        else:
+            raise Exception('Format not recognized: %s' % format)
     except FileNotFoundError:
-        return misc.imread(const.DEFAULT_IMG_NAME)
+        if format == 'scipy':
+            return misc.imread(const.DEFAULT_IMG_NAME)
+        if format == 'opencv':
+            return cv2.imread(const.DEFAULT_IMG_NAME)
+        else:
+            raise Exception('Format not recognized: %s' % format)
 
 def bot_help(prompt, channel, client, thread):
     '''
@@ -300,7 +311,7 @@ def bot_stylize(prompt, channel, client, thread):
     ckpt = 'neural_style_transfer/models/%s.t7' % style
     
     # perform style transfer
-    img = read_image(const.IN_IMG_NAME)
+    img = read_image(const.IN_IMG_NAME, format='opencv')
     _, output = style_transfer(img, ckpt)
     misc.imsave(const.OUT_IMG_NAME, output)
     
