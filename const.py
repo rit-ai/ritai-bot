@@ -4,7 +4,7 @@
 
 import os
 
-VERSION         = '0.4'
+VERSION         = '0.5'
 BOT_TOKEN = os.environ.get('APP_BOT_USER_TOKEN')
 
 # shared
