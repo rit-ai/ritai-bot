@@ -6,6 +6,7 @@
 import os
 import random
 
+import cv2
 import imageio
 import requests
 import numpy as np
