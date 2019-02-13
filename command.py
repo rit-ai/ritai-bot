@@ -6,6 +6,7 @@
 import os
 import random
 
+import imageio
 import requests
 import numpy as np
 from scipy import misc
@@ -83,9 +84,9 @@ def read_image(fname):
     Reads in an image. If the image is not present, it returns a default image.
     '''
     try:
-        return misc.imread(const.IN_IMG_NAME)
+        return imageio.imread(const.IN_IMG_NAME)
     except FileNotFoundError:
-        return misc.imread(const.DEFAULT_IMG_NAME)
+        return imageio.imread(const.DEFAULT_IMG_NAME)
 
 def bot_help(prompt, channel, client, thread):
     '''
@@ -162,7 +163,7 @@ def bot_mnist(prompt, channel, client, thread):
     if img_url: download_image(img_url) 
     
     # perform mnist
-    img = misc.imread(const.IN_IMG_NAME, flatten=True)
+    img = read_image(const.IN_IMG_NAME)
     prediction = mnist.query(img)
 
     # report prediction
@@ -234,7 +235,7 @@ def bot_kmeans(prompt, channel, client, thread):
     # perform kMeans
     img = read_image(const.IN_IMG_NAME)
     output = kMeans(img, k_value)
-    misc.imsave(const.OUT_IMG_NAME, output)
+    imageio.imwrite(const.OUT_IMG_NAME, output)
     
     upload_image(('k: %d' % k_value), channel, client, thread)
 
@@ -302,7 +303,7 @@ def bot_stylize(prompt, channel, client, thread):
     # perform style transfer
     img = read_image(const.IN_IMG_NAME)
     _, output = style_transfer(img, ckpt)
-    misc.imsave(const.OUT_IMG_NAME, output)
+    imageio.imwrite(const.OUT_IMG_NAME, output)
     
     # post image to channel
     upload_image(('style: %s' % style), channel, client, thread)
