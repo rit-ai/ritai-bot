@@ -118,7 +118,7 @@ def handle_prompt(prompt, channel, thread):
             command.bot_stylize(prompt, channel, client, thread)
         
         elif prompt.startswith(const.ERROR_PROMPT):
-            raise Exception('Exception provoked by error prompt')
+            raise Exception('please edit')
 
         else:
             command.respond(default_response, channel, client, thread)
@@ -132,8 +132,7 @@ def handle_prompt(prompt, channel, thread):
             elog.write('[%s]: %s\n' % (time.strftime(TIME_FORMAT, time.localtime()), err))
         post_error(err, client)
         log(err)
-        log(channel)
-        # command.respond(error_response, channel, client, thread)
+        command.respond(error_response, channel, client, thread)
 
 if __name__ == '__main__':
     # try to connect to slack
