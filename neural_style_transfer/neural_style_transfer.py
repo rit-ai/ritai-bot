@@ -41,7 +41,8 @@ def style_transfer(image, ckpt):
     # then grab the image dimensions
     #image = cv2.imread(im_name)
 
-    image = imutils.resize(image, width=600)
+    imutils.resize(image, width=600)
+    
     (h, w) = image.shape[:2]
     
     # construct a blob from the image, set the input, and then perform a

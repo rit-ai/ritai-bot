@@ -25,6 +25,32 @@ client = SlackClient(const.BOT_TOKEN)
 # starterbot's user ID in Slack: value is assigned after the bot starts up
 bot_name = None
 
+TIME_FORMAT = '%H:%M:%S'
+ELOG_CHANNEL = 'test_bots'
+
+def log(s):
+    '''More informative print debugging'''
+    print('[%s]: %s' % (time.strftime(TIME_FORMAT, time.localtime()), str(s)))
+
+def post_error(error, client):
+    '''Posts stack trace to a channel dedicated to bot maintenance'''
+    channels = client.api_call('conversations.list', exclude_archived=1)['channels']
+    elog_channel = None
+    for channel in channels:
+        if channel['name'] == ELOG_CHANNEL:
+            elog_channel = channel['id']
+            break
+    if not elog_channel:
+        log('WARNING: No channel in which to log errors!')
+
+    error = '```\n' + error + '```' # makes it look fancy, I think
+
+    client.api_call(
+        'chat.postMessage',
+        channel=elog_channel,
+        text=error,
+    )
+
 def parse_bot_commands(slack_events):
     '''
     Parses a list of events coming from the Slack RTM API to find bot commands.
@@ -35,7 +61,7 @@ def parse_bot_commands(slack_events):
         if event['type'] == 'message' and not 'subtype' in event:
             user_name, message = parse_direct_mention(event['text'])
             if user_name == bot_name:
-                # print(event)
+                # log(event)
             
                 # download a file if it was present in the message
                 if 'files' in event:
@@ -90,6 +116,9 @@ def handle_prompt(prompt, channel, thread):
             
         elif prompt.startswith(const.STYLIZE_PROMPT):
             command.bot_stylize(prompt, channel, client, thread)
+        
+        elif prompt.startswith(const.ERROR_PROMPT):
+            raise Exception('Exception provoked by error prompt')
 
         else:
             command.respond(default_response, channel, client, thread)
@@ -100,9 +129,11 @@ def handle_prompt(prompt, channel, thread):
         # dev version of the bot
         err = traceback.format_exc()
         with open('elog.txt', 'a') as elog:
-            elog.write(err + '\n\n')
-        print(err)
-        command.respond(error_response, channel, client, thread)
+            elog.write('[%s]: %s\n' % (time.strftime(TIME_FORMAT, time.localtime()), err))
+        post_error(err, client)
+        log(err)
+        log(channel)
+        # command.respond(error_response, channel, client, thread)
 
 if __name__ == '__main__':
     # try to connect to slack
@@ -110,13 +141,15 @@ if __name__ == '__main__':
         # Read bot's user ID by calling Web API method `auth.test`
         bot_name = client.api_call('auth.test')['user_id']
         # connection is successful
-        print('ritai-bot connected and running!')
+        log('ritai-bot connected and running!')
+
         while True:
             # loop forever, checking for mentions every RTM_READ_DELAY
             prompt, channel, thread = parse_bot_commands(client.rtm_read())
             if prompt:
-                print(prompt)
+                log(prompt)
                 handle_prompt(prompt, channel, thread)
             time.sleep(const.RTM_READ_DELAY)
+            
     else:
-        print('Connection failed. Exception traceback printed above.')
+        log('Connection failed. Exception traceback printed above.')
