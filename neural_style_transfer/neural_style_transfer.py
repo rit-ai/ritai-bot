@@ -6,6 +6,7 @@ import random
 import time
 import os
 
+import imageio
 import imutils
 import cv2
 
@@ -39,7 +40,6 @@ def style_transfer(image, ckpt):
     
     # resize the image to have a width of 600 pixels, and
     # then grab the image dimensions
-    #image = cv2.imread(im_name)
 
     imutils.resize(image, width=600)
     

@@ -85,9 +85,9 @@ def read_image(fname):
     Reads in an image. If the image is not present, it returns a default image.
     '''
     try:
-        return imageio.imread(const.IN_IMG_NAME)
+        return cv2.imread(const.IN_IMG_NAME)
     except FileNotFoundError:
-        return imageio.imread(const.DEFAULT_IMG_NAME)
+        return cv2.imread(const.DEFAULT_IMG_NAME)
 
 def bot_help(prompt, channel, client, thread):
     '''
@@ -236,7 +236,7 @@ def bot_kmeans(prompt, channel, client, thread):
     # perform kMeans
     img = read_image(const.IN_IMG_NAME)
     output = kMeans(img, k_value)
-    imageio.imwrite(const.OUT_IMG_NAME, output)
+    cv2.imwrite(const.OUT_IMG_NAME, output)
     
     upload_image(('k: %d' % k_value), channel, client, thread)
 
@@ -304,7 +304,7 @@ def bot_stylize(prompt, channel, client, thread):
     # perform style transfer
     img = read_image(const.IN_IMG_NAME)
     _, output = style_transfer(img, ckpt)
-    imageio.imwrite(const.OUT_IMG_NAME, output)
+    cv2.imwrite(const.OUT_IMG_NAME, output)
     
     # post image to channel
     upload_image(('style: %s' % style), channel, client, thread)
