@@ -1,3 +1,5 @@
+logs/
+
 *.png
 !default.png
 *.swp
@@ -5,5 +7,6 @@
 *.txt
 *.gz
 Pipfile
+driver
 
 __pycache__

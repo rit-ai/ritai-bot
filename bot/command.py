@@ -13,11 +13,12 @@ import numpy as np
 from scipy import misc
 from io import BytesIO
 
-import const
-from joke import joke
-from mnist import mnist
-from kmeans import kMeans
-from neural_style_transfer.neural_style_transfer import style_transfer
+from bot import const
+from bot import transmit
+from bot.joke import joke
+from bot.mnist import mnist
+from bot.kmeans import kmeans
+from bot.stylize import neural_style_transfer
 
 def respond(message, channel, client, thread):
     '''
@@ -29,68 +30,6 @@ def respond(message, channel, client, thread):
         text=message,
         thread_ts=thread
     )
-
-def check_url(url):
-    '''
-    Returns True if the url returns a response code between 200-300,
-    otherwise return False.
-
-    author: Matto Todd
-    '''
-    
-    if url[0] == '<':
-        url = url[1:-1]
-
-    try:
-        response = requests.get(url, headers=HEADERS)
-    except ConnectionError:
-        return False
-
-    if response.status_code <= 200:
-        return True
-
-    return False
-
-def download_image(img_url):
-    '''
-    Download an image from a url
-    '''
-
-    # sometimes slack packages urls in messages in brackets
-    # these will cause an error unless we remove them
-    if img_url[0] == '<':
-        img_url = img_url[1:-1]
-    
-    const.BOT_TOKEN = os.environ.get('APP_BOT_USER_TOKEN')
-    headers = {'Authorization': 'Bearer %s' % const.BOT_TOKEN}
-    response = requests.get(img_url, headers=headers)
-    with open(const.IN_IMG_NAME, 'wb') as image:
-        image.write(response.content)
-        
-def upload_image(comment, channel, client, thread):
-    '''post image to channel'''
-    with open(const.OUT_IMG_NAME, 'rb') as f:
-        client.api_call(
-            'files.upload',
-            channels=[channel],
-            filename=const.OUT_IMG_NAME,
-            title='output',
-            initial_comment=comment,
-            file=f,
-            thread_ts=thread
-        )
-        
-def read_image(fname):
-    '''
-    Reads in an image. If the image is not present, it returns a default image.
-    '''
-    img = cv2.imread(const.IN_IMG_NAME)
-    if img is None: # invalid image paths yield None
-        img = cv2.imread(const.DEFAULT_IMG_NAME)    
-    if img is None: # if image is still none, there's a real problem
-        raise Exception('Default image is missing in read_image()')
-    
-    return img
 
 def bot_help(prompt, channel, client, thread):
     '''
@@ -143,36 +82,24 @@ def bot_mnist(prompt, channel, client, thread):
     if prompt_list[0] == const.HELP_PROMPT:
         respond(    
                 'usage:\n' +\
-                    '\t@ritai mnist\n' +\
-                    '\t\tguess what number is in attached image\n' +\
-                    '\t@ritai mnist [image_url]\n' +\
-                    '\t\tguess what number is in image in url\n',
+                    '\t@ritai mnist <image>\n' +\
+                    '\t\tAttach an image and I will guess what number it is!\n',
                 channel,
-                client
+                client,
+                thread
             )
         return
-    # was an image url provided?
-    if len(prompt_list) > 1:
-        img_url = prompt_list[1]
     # warn user if they entered too many arguments
-    if len(prompt_list) > 2:
+    if len(prompt_list) > 1:
         respond('Invalid number of arguments: %d' % len(prompt_list), channel, client, thread)
         return
-
-    # validate url
-    if img_url and not check_url(img_url):
-        respond('Could not validate url.', channel, client, thread)
-        return
-    
-    if img_url: download_image(img_url) 
     
     # perform mnist
-    img = read_image(const.IN_IMG_NAME)
+    img = transmit.read_image(const.IN_IMG_NAME)
     prediction = mnist.query(img)
 
     # report prediction
     respond('I think this is a... %d.' % prediction, channel, client, thread)
-
 
 def bot_kmeans(prompt, channel, client, thread):
     '''
@@ -193,33 +120,25 @@ def bot_kmeans(prompt, channel, client, thread):
     if prompt_list[0] == const.HELP_PROMPT:
         respond(
             'usage:\n' +\
-                '\t@ritai kmeans [k_value]\n' +\
-                '\t\tperform k-means over the attached image\n' +\
-                '\t@ritai kmeans [k_value] [image_url]\n' +\
-                '\t\tperform k-means over image denoted by url\n' +\
-                '\tNOTE: k_value must be in range [1-10]\n' +\
-                '\tNOTE: if k_value is not an integer, a random k_value will be chosen\n',
+                '\t@ritai kmeans [k_value] <image>\n' +\
+                '\t\tI will perform k-means color simplification on the attached image.\n' +\
+                '\tNOTE: k_value must be in range [1-10].\n' +\
+                '\tNOTE: If k_value is not an integer, I will choose one randomly.\n',
             channel,
-            client
+            client,
+            thread
         )
         return
     # was an k value provided?
     if len(prompt_list) > 1:
         k_value = prompt_list[1]
-    # was a k value provided?
-    if len(prompt_list) > 2:
-        img_url = prompt_list[2]
     # warn the user if too many arguments were provided
-    if len(prompt_list) > 3:
+    if len(prompt_list) > 2:
         respond('Invalid numer of arguments: %d' % len(prompt_list), channel, thread)
         return
 
-    # validate url and k-value, as necessary
-
-    if img_url and not check_url(img_url):
-        respond('Could not validate url.', channel, client, thread)
-        return
-
+    # validate k_value
+    
     if k_value:
         try:
             k_value = int(k_value)
@@ -232,16 +151,13 @@ def bot_kmeans(prompt, channel, client, thread):
         k_value = (int)(np.random.normal(7, 3))
         if k_value < 1: k_value = 1
         if k_value > 10: k_value = 10
-    
-    # acquire image (if no url, assume image has already been downloaded)
-    if img_url: download_image(img_url)
 
     # perform kMeans
-    img = read_image(const.IN_IMG_NAME)
-    output = kMeans(img, k_value)
-    cv2.imwrite(const.OUT_IMG_NAME, output)
+    img = transmit.read_image(const.IN_IMG_NAME)
+    output = kmeans.kMeans(img, k_value)
+    transmit.write_image(const.OUT_IMG_NAME, output)
     
-    upload_image(('k: %d' % k_value), channel, client, thread)
+    transmit.upload_image(('k: %d' % k_value), channel, client, thread)
 
 def bot_stylize(prompt, channel, client, thread):
     '''
@@ -259,16 +175,15 @@ def bot_stylize(prompt, channel, client, thread):
     if prompt_list[0] == const.HELP_PROMPT:
         respond(
             'usage:\n' +\
-                '\t@ritai stylize\n' +\
-                '\t\tStylize attached image with random style\n' +\
-                '\t@ritai stylize [style]\n' +\
-                '\t\tStylize attached image with a specific style\n' +\
-                '\t@ritai stylize [style] [img_url]\n' +\
-                '\t\tStylize image in URL with a specific style\n' +\
+                '\t@ritai stylize <image>\n' +\
+                '\t\tI will stylize the attached image with a random style.\n' +\
+                '\t@ritai stylize [style] <image>\n' +\
+                '\t\tI will stylize the attached image with a specific style.\n' +\
                 '\tNOTE: valid styles include:\n' +\
                 '\t' + str(STYLES) + '\n',
             channel,
-            client
+            client,
+            thread
         )
         return
     # what style does the user want?
@@ -284,33 +199,23 @@ def bot_stylize(prompt, channel, client, thread):
                 client
             )
             return
-    # did the user provide a url in addition to a style?
-    if len(prompt_list) > 2:
-        img_url = prompt_list[2]
     # warn the user if they provided too many arguments
-    if len(prompt_list) > 3:
+    if len(prompt_list) > 2:
         respond('Invalid numer of arguments: %d' % len(prompt_list), channel, client, thread)
         return
-    
-    if img_url and not check_url(img_url):
-        respond('Could not validate url.', channel, client, thread)
-        return
-        
-    # acquire image (if no url, assume image has already been downloaded)
-    if img_url: download_image(img_url)
     
     if not style:
         style = random.choice(STYLES)
     
-    ckpt = 'neural_style_transfer/models/%s.t7' % style
+    ckpt = const.MODEL_PATH + ('{style}.t7'.format(style=style))
     
     # perform style transfer
-    img = read_image(const.IN_IMG_NAME)
-    _, output = style_transfer(img, ckpt)
-    cv2.imwrite(const.OUT_IMG_NAME, output)
+    img = transmit.read_image(const.IN_IMG_NAME)
+    _, output = neural_style_transfer.style_transfer(img, ckpt)
+    transmit.write_image(const.OUT_IMG_NAME, output)
     
     # post image to channel
-    upload_image(('style: %s' % style), channel, client, thread)
+    transmit.upload_image(('style: %s' % style), channel, client, thread)
     
 def bot_joke(prompt, channel, client, thread):
     '''

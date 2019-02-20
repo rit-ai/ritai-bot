@@ -2,11 +2,17 @@
 Adapted from: https://jrusev.github.io/post/hacking-mnist/
 """
 
+# standard lib
 import os
 import sys
 import pickle
+
+# required lib
 import numpy as np
 from scipy import misc
+
+# project lib
+from bot import const
 
 def feed_forward(X, weights):
     a = [X]
@@ -41,7 +47,7 @@ def query(img):
 
     img_smol = misc.imresize(img, [28, 28])
 
-    misc.imsave('out.png', img_smol)
+    misc.imsave(const.TEMP_PATH + const.OUT_IMG_NAME, img_smol)
 
     img_lin = np.resize(img_smol, [1, 784])
 

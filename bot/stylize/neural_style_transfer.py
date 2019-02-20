@@ -10,7 +10,7 @@ import imageio
 import imutils
 import cv2
 
-MODEL_DIR = 'models/'
+MODEL_DIR = 'bot/stylize/models/'
 
 def parse_args():
     '''construct the argument parser and parse the arguments'''

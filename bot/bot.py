@@ -17,8 +17,9 @@ import traceback
 from slackclient import SlackClient
 
 # project-specific libraries
-import const
-import command
+from bot import const
+from bot import command
+from bot import transmit
 
 # instantiate Slack client
 client = SlackClient(const.BOT_TOKEN)
@@ -67,7 +68,7 @@ def parse_bot_commands(slack_events):
                 if 'files' in event:
                     # file is present
                     f = event['files'][0]
-                    command.download_image(f['url_private_download'])
+                    transmit.download_image(f['url_private_download'])
                 
                 # reply to the parent thread, not the child thread
                 if 'thread_ts' in event:
@@ -128,7 +129,10 @@ def handle_prompt(prompt, channel, thread):
         # error happening, so we can hopefully replicate and fix it on the 
         # dev version of the bot
         err = traceback.format_exc()
-        with open('elog.txt', 'a') as elog:
+        if not os.path.isdir(const.LOG_PATH):
+            os.makedirs(const.LOG_PATH)
+        with open(const.LOG_PATH + 'elog.txt', 'a') as elog:
+            elog.write('[%s]: %s\n' % (time.strftime(TIME_FORMAT, time.localtime()), prompt))
             elog.write('[%s]: %s\n' % (time.strftime(TIME_FORMAT, time.localtime()), err))
         post_error(err, client)
         log(err)
