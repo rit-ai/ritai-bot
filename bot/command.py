@@ -13,12 +13,12 @@ import numpy as np
 from scipy import misc
 from io import BytesIO
 
-import const
-import transmit
-from joke import joke
-from mnist import mnist
-from kmeans import kmeans
-from stylize import neural_style_transfer
+from bot import const
+from bot import transmit
+from bot.joke import joke
+from bot.mnist import mnist
+from bot.kmeans import kmeans
+from bot.stylize import neural_style_transfer
 
 def respond(message, channel, client, thread):
     '''
@@ -207,7 +207,7 @@ def bot_stylize(prompt, channel, client, thread):
     if not style:
         style = random.choice(STYLES)
     
-    ckpt = const.MODEL_PATH + ('{style}.t7'.format(style=style))
+    ckpt = str(const.MODEL_PATH / ('{style}.t7'.format(style=style)))
     
     # perform style transfer
     img = transmit.read_image(const.IN_IMG_NAME)

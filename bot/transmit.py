@@ -25,12 +25,12 @@ def download_image(img_url):
     if not os.path.isdir(const.TEMP_PATH):
         os.makedirs(const.TEMP_PATH)
     
-    with open(const.TEMP_PATH + const.IN_IMG_NAME, 'wb') as image:
+    with open(const.TEMP_PATH / const.IN_IMG_NAME, 'wb') as image:
         image.write(response.content)
         
 def upload_image(comment, channel, client, thread):
     '''Post image to channel'''
-    with open(const.TEMP_PATH + const.OUT_IMG_NAME, 'rb') as img:
+    with open(str(const.TEMP_PATH / const.OUT_IMG_NAME), 'rb') as img:
         client.api_call(
             'files.upload',
             channels=[channel],
@@ -45,17 +45,17 @@ def read_image(fname):
     '''
     Reads in an image. If the image is not present, it returns a default image.
     '''
-    img = cv2.imread(const.TEMP_PATH + const.IN_IMG_NAME)
+    img = cv2.imread(str(const.TEMP_PATH / const.IN_IMG_NAME))
     if img is None: # invalid image paths yield None
-        img = cv2.imread(const.DEFAULT_PATH + const.DEFAULT_IMG_NAME)    
+        img = cv2.imread(str(const.DEFAULT_PATH / const.DEFAULT_IMG_NAME))    
     if img is None: # if image is still none, there's a real problem
-        raise Exception('Default image is missing in read_image(): {path}'.format(path=const.DEFAULT_PATH + const.DEFAULT_IMG_NAME))
+        raise Exception('Default image is missing in read_image(): {path}'.format(path=const.DEFAULT_PATH / const.DEFAULT_IMG_NAME))
     
     return img
     
 def write_image(fname, image):
     '''Writes an image to the temp folder'''
-    if not os.path.isdir(const.TEMP_PATH):
-        os.makedirs(const.TEMP_PATH)
+    if not os.path.isdir((const.TEMP_PATH)):
+        os.makedirs(str(const.TEMP_PATH))
     
-    cv2.imwrite(const.TEMP_PATH + fname, image)
+    cv2.imwrite(str(const.TEMP_PATH / fname), image)

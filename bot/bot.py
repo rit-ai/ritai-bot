@@ -17,9 +17,9 @@ import traceback
 from slackclient import SlackClient
 
 # project-specific libraries
-import const
-import command
-import transmit
+from bot import const
+from bot import command
+from bot import transmit
 
 # instantiate Slack client
 client = SlackClient(const.BOT_TOKEN)
@@ -131,7 +131,7 @@ def handle_prompt(prompt, channel, thread):
         err = traceback.format_exc()
         if not os.path.isdir(const.LOG_PATH):
             os.makedirs(const.LOG_PATH)
-        with open(const.LOG_PATH + 'elog.txt', 'a') as elog:
+        with open(const.LOG_PATH / 'elog.txt', 'a') as elog:
             elog.write('[%s]: %s\n' % (time.strftime(TIME_FORMAT, time.localtime()), prompt))
             elog.write('[%s]: %s\n' % (time.strftime(TIME_FORMAT, time.localtime()), err))
         post_error(err, client)
