@@ -17,9 +17,9 @@ import traceback
 from slackclient import SlackClient
 
 # project-specific libraries
-from bot import const
-from bot import command
-from bot import transmit
+import const
+import command
+import transmit
 
 # instantiate Slack client
 client = SlackClient(const.BOT_TOKEN)

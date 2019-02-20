@@ -13,12 +13,12 @@ import numpy as np
 from scipy import misc
 from io import BytesIO
 
-from bot import const
-from bot import transmit
-from bot.joke import joke
-from bot.mnist import mnist
-from bot.kmeans import kmeans
-from bot.stylize import neural_style_transfer
+import const
+import transmit
+from joke import joke
+from mnist import mnist
+from kmeans import kmeans
+from stylize import neural_style_transfer
 
 def respond(message, channel, client, thread):
     '''
