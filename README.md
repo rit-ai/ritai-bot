@@ -17,7 +17,7 @@ Create a .sh file with these three lines:
 ```
 export APP_ACCESS_TOKEN='<app_secret>'
 export APP_BOT_USER_TOKEN='<bot_user_secret>'
-python3 bot.py
+python3 bot/bot.py
 ```
 
 Then, you can run this file using the command:

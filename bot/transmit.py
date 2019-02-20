@@ -49,7 +49,7 @@ def read_image(fname):
     if img is None: # invalid image paths yield None
         img = cv2.imread(const.DEFAULT_PATH + const.DEFAULT_IMG_NAME)    
     if img is None: # if image is still none, there's a real problem
-        raise Exception('Default image is missing in read_image()')
+        raise Exception('Default image is missing in read_image(): {path}'.format(path=const.DEFAULT_PATH + const.DEFAULT_IMG_NAME))
     
     return img
     
