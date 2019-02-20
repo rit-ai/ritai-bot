@@ -47,8 +47,6 @@ def query(img):
 
     img_smol = misc.imresize(img, [28, 28])
 
-    misc.imsave(const.TEMP_PATH + const.OUT_IMG_NAME, img_smol)
-
     img_lin = np.resize(img_smol, [1, 784])
 
     prediction = np.argmax(feed_forward(img_lin, weights)[-1], axis=1)
