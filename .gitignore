@@ -2,6 +2,7 @@ logs/
 
 *.png
 !default.png
+!bot_logo.png
 *.swp
 *.sh
 *.txt
