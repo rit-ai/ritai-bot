@@ -84,10 +84,13 @@ def read_image(fname):
     '''
     Reads in an image. If the image is not present, it returns a default image.
     '''
-    try:
-        return cv2.imread(const.IN_IMG_NAME)
-    except FileNotFoundError:
-        return cv2.imread(const.DEFAULT_IMG_NAME)
+    img = cv2.imread(const.IN_IMG_NAME)
+    if img is None: # invalid image paths yield None
+        img = cv2.imread(const.DEFAULT_IMG_NAME)    
+    if img is None: # if image is still none, there's a real problem
+        raise Exception('Default image is missing in read_image()')
+    
+    return img
 
 def bot_help(prompt, channel, client, thread):
     '''
