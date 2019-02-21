@@ -2,4 +2,4 @@
 
 cd $APP_ROOT
 source $APP_ROOT/bin/activate
-python3 bot/bot.py
+python3 driver

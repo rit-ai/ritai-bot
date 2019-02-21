@@ -10,16 +10,16 @@ import cv2
 import requests
 
 # project lib
-from bot import const
+from . import const
 
-def download_image(img_url):
+def download_image(img_url, bot_token):
     '''Downloads an image from a url'''
     # sometimes slack packages urls in messages in brackets
     # these will cause an error unless we remove them
     if img_url[0] == '<':
         img_url = img_url[1:-1]
     
-    headers = {'Authorization': 'Bearer %s' % const.BOT_TOKEN}
+    headers = {'Authorization': 'Bearer %s' % bot_token}
     response = requests.get(img_url, headers=headers)
     
     if not os.path.isdir(const.TEMP_PATH):

@@ -6,7 +6,6 @@ import os
 import pathlib
 
 VERSION = '0.6'
-BOT_TOKEN = os.environ.get('APP_BOT_USER_TOKEN')
 CWD = pathlib.Path(os.getcwd()) / 'bot'
 
 # shared
