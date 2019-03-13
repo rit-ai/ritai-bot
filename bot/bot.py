@@ -18,11 +18,20 @@ from slackclient import SlackClient
 
 # project-specific libraries
 from . import const
-from . import command
-from . import transmit
+from .skill.help import help
+from .skill.mnist import mnist
+from .skill.kmeans import kmeans
+from .skill.stylize import stylize
 
 TIME_FORMAT = '%H:%M:%S'
 ELOG_CHANNEL = 'test_bots'
+# A dictionary of string prompts mapping to functions
+CATALOGUE = {
+    const.HELP_PROMPT       : help.SkillHelp,
+    const.KMEANS_PROMPT     : kmeans.SkillKmeans,
+    const.MNIST_PROMPT      : mnist.SkillMnist,
+    const.STYLIZE_PROMPT    : stylize.SkillStylize
+}
 
 def log(s):
     '''More informative print debugging'''
@@ -46,6 +55,22 @@ def post_error(error, client):
         channel=elog_channel,
         text=error,
     )
+    
+def download_image(img_url, bot_token):
+    '''Downloads an image from a url'''
+    # sometimes slack packages urls in messages in brackets
+    # these will cause an error unless we remove them
+    if img_url[0] == '<':
+        img_url = img_url[1:-1]
+    
+    headers = {'Authorization': 'Bearer %s' % bot_token}
+    response = requests.get(img_url, headers=headers)
+    
+    if not os.path.isdir(const.TEMP_PATH):
+        os.makedirs(const.TEMP_PATH)
+    
+    with open(const.TEMP_PATH / const.IN_IMG_NAME, 'wb') as image:
+        image.write(response.content)
 
 def parse_bot_commands(slack_events, bot_name, bot_token):
     '''
@@ -63,7 +88,7 @@ def parse_bot_commands(slack_events, bot_name, bot_token):
                 if 'files' in event:
                     # file is present
                     f = event['files'][0]
-                    transmit.download_image(f['url_private_download'], bot_token)
+                    download_image(f['url_private_download'], bot_token)
                 
                 # reply to the parent thread, not the child thread
                 if 'thread_ts' in event:
@@ -92,32 +117,42 @@ def handle_prompt(prompt, channel, client, thread):
     '''
     Executes bot prompt if the prompt is known. The bot runs continuously and 
     logs errors to a file.
-    '''
-    # Default response is help text for the user
-    default_response = 'Unknown prompt. Try @ritai {}'.format(const.HELP_PROMPT)
-    error_response = 'There\'s been an error. Whoops, please edit.'
+    '''    
+    
+    # Help is a special Skill that we use to inform the user as to what the bot
+    # can and cannot do
+    Help = CATALOGUE[const.HELP_PROMPT](client, channel, thread)
 
     try:
-        if prompt.startswith(const.HELP_PROMPT):
-            command.bot_help(prompt, channel, client, thread)
-
-        elif prompt.startswith(const.KMEANS_PROMPT):
-            command.bot_kmeans(prompt, channel, client, thread)
-
-        elif prompt.startswith(const.MNIST_PROMPT):
-            command.bot_mnist(prompt, channel, client, thread)
-
-        elif prompt.startswith(const.JOKE_PROMPT):
-            command.bot_joke(prompt, channel, client, thread)
-            
-        elif prompt.startswith(const.STYLIZE_PROMPT):
-            command.bot_stylize(prompt, channel, client, thread)
-        
-        elif prompt.startswith(const.ERROR_PROMPT):
-            raise Exception('please edit')
-
+        # get the first and second words of the sent message (if they exist)
+        words = prompt.split(' ')
+        firstword = words[0]
+        if len(words) > 1:
+            secondword = words[1]
         else:
-            command.respond(default_response, channel, client, thread)
+            secondword = None
+        
+        # if the first word is asking for clarification, print a message
+        if firstword == const.HELP_PROMPT:
+            # send clarification about a command
+            if secondword and secondword in CATALOGUE.keys():
+                CATALOGUE[secondword](client, channel, thread).help()
+            # send general clarification
+            else:
+                Help.help()
+        
+        # this command exists only to throw an error, to test error handling
+        elif firstword == const.ERROR_PROMPT:
+            raise Exception('please edit')
+        
+        # if we recognize the command, then execute it
+        elif firstword in CATALOGUE.keys():
+            CATALOGUE[firstword](client, channel, thread).execute(prompt)
+
+        # otherwise, warn the user that we don't understand
+        else:
+            Help.execute(prompt)
+    
     except Exception:
         # we don't want the bot to crash because we cannot easily restart it
         # this default response will at least make us aware that there's an 
@@ -131,7 +166,7 @@ def handle_prompt(prompt, channel, client, thread):
             elog.write('[%s]: %s\n' % (time.strftime(TIME_FORMAT, time.localtime()), err))
         post_error(err, client)
         log(err)
-        command.respond(error_response, channel, client, thread)
+        Help.error()
 
 def main(access_token=None, bot_user_token=None):
     # if the environment variables we need to log in were provided, set them

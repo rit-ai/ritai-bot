@@ -12,7 +12,7 @@ import numpy as np
 from scipy import misc
 
 # project lib
-from bot import const
+from .. import skill
 
 def feed_forward(X, weights):
     a = [X]
@@ -78,6 +78,33 @@ def train():
 
         with open('model.pkl', 'wb') as model:
             pickle.dump(weights, model)
+            
+class SkillMnist(skill.Skill):
+    
+    def help(self):
+        self.respond(    
+            'usage:\n' +\
+                '\t@ritai mnist <image>\n' +\
+                '\t\tAttach an image and I will guess what number it is!\n'
+        )
+    
+    def execute(self, prompt):
+        '''
+        Uses a rudimentary neural net to guess which number is in an image.
+        '''
+        prompt_list = prompt.split(' ')
+        
+        # warn user if they entered too many arguments
+        if len(prompt_list) > 1:
+            self.respond('Invalid number of arguments: %d' % len(prompt_list))
+            return
+        
+        # perform mnist
+        img = self.read_image()
+        prediction = query(img)
+
+        # report prediction
+        self.respond('I think this is a... %d.' % prediction)
 
 def main():
     train()
