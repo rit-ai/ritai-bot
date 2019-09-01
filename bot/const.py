@@ -15,6 +15,7 @@ MNIST_PROMPT    = 'mnist'
 STYLIZE_PROMPT  = 'stylize'
 CAPTION_PROMPT  = 'caption'
 ERROR_PROMPT    = 'whoops'
+STASH_PROMPT    = 'stash'
 
 INFO_CLIENT = 'client'
 INFO_CHANNEL = 'channel'

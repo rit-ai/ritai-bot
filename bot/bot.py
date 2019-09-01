@@ -16,12 +16,15 @@ import requests
 import traceback
 from slack import WebClient
 
+
+# project-specific libraries
 from . import const
 from .skill.help import help
 from .skill.mnist import mnist
 from .skill.kmeans import kmeans
 from .skill.stylize import stylize
 from .skill.caption import caption
+
 
 TIME_FORMAT = '%H:%M:%S'
 ELOG_CHANNEL = 'test_bots'
@@ -40,22 +43,23 @@ def log(s):
 
 def post_error(error, client):
     '''Posts stack trace to a channel dedicated to bot maintenance'''
-    channels = client.api_call('conversations.list', exclude_archived=1)['channels']
-    elog_channel = None
-    for channel in channels:
-        if channel['name'] == ELOG_CHANNEL:
-            elog_channel = channel['id']
-            break
-    if not elog_channel:
-        log('WARNING: No channel in which to log errors!')
+    channels = client.api_call(method='conversations.list', exclude_archived=1)['channels']
+    if channels:
+        elog_channel = None
+        for channel in channels:
+            if channel['name'] == ELOG_CHANNEL:
+                elog_channel = channel['id']
+                break
+        if not elog_channel:
+            log('WARNING: No channel in which to log errors!')
 
-    error = '```\n' + error + '```' # makes it look fancy, I think
+        error = '```\n' + error + '```' # makes it look fancy, I think
 
-    client.api_call(
-        'chat.postMessage',
-        channel=elog_channel,
-        text=error,
-    )
+        client.api_call(
+            'chat.postMessage',
+            channel=elog_channel,
+            text=error,
+        )
     
 def download_attached_image(img_url, bot_token):
     '''Downloads an image from a url'''
@@ -83,14 +87,11 @@ def parse_bot_commands(slack_events, bot_name, bot_token):
         if event['type'] == 'message' and not 'subtype' in event:
             user_name, message = parse_direct_mention(event['text'])
             if user_name == bot_name:
-                # log(event)
-            
                 # download a file if it was present in the message
                 if 'files' in event:
                     # file is present
                     f = event['files'][0]
                     download_attached_image(f['url_private_download'], bot_token)
-                
                 # reply to the parent thread, not the child thread
                 if 'thread_ts' in event:
                     thread = event['thread_ts']
@@ -114,16 +115,12 @@ def parse_direct_mention(message_text):
     else:
         return (None, None)
 
-
 def handle_prompt(prompt, info):
     '''
     Executes bot prompt if the prompt is known. The bot runs continuously and 
     logs errors to a file.
-    '''
-    # Default response is help text for the user
-    default_response = 'Unknown prompt. Try @ritai {}'.format(const.HELP_PROMPT)
-    error_response = 'There\'s been an error. Whoops, please edit.'
-
+    '''    
+    
     # Help is a special Skill that we use to inform the user as to what the bot
     # can and cannot do
     Help = CATALOGUE[const.HELP_PROMPT]
@@ -156,8 +153,10 @@ def handle_prompt(prompt, info):
             CATALOGUE[firstword].set_info(info)
             CATALOGUE[firstword].execute(prompt)
 
+        # otherwise, warn the user that we don't understand
         else:
-            command.respond(default_response, channel, client, thread)
+            Help.execute(prompt)
+    
     except Exception:
         # we don't want the bot to crash because we cannot easily restart it
         # this default response will at least make us aware that there's an 
@@ -169,9 +168,20 @@ def handle_prompt(prompt, info):
         with open(str(const.LOG_PATH / 'elog.txt'), 'a') as elog:
             elog.write('[%s]: %s\n' % (time.strftime(TIME_FORMAT, time.localtime()), prompt))
             elog.write('[%s]: %s\n' % (time.strftime(TIME_FORMAT, time.localtime()), err))
-        post_error(err, client)
+        post_error(err, info[const.INFO_CLIENT])
         log(err)
-        command.respond(error_response, channel, client, thread)
+        Help.error()
+
+def main(access_token=None, bot_user_token=None):
+    # if the environment variables we need to log in were provided, set them
+    if access_token:
+        os.environ['APP_ACCESS_TOKEN'] = access_token
+    if bot_user_token:
+        os.environ['APP_BOT_USER_TOKEN'] = bot_user_token
+        
+    bot_token = os.environ.get('APP_BOT_USER_TOKEN')
+    # instantiate Slack client
+    client = SlackClient(bot_token)
 
 def launch_bot():
     try:
@@ -195,7 +205,7 @@ def main():
     if launch_bot(access_token, bot_user_token):
         while True:
             # loop forever, checking for mentions every RTM_READ_DELAY
-            prompt, channel, thread = parse_bot_commands(client.rtm_read())
+            prompt, channel, thread = parse_bot_commands(client.rtm_read(), bot_name, bot_token)
             if prompt:
                 log(prompt)
                 # info is an object that lets the bot keep track of who it's responding to.
@@ -206,3 +216,9 @@ def main():
                 }
                 handle_prompt(prompt, info)
             time.sleep(const.RTM_READ_DELAY)
+            
+    else:
+        log('Connection failed. Exception traceback printed above.')
+
+if __name__ == '__main__':
+    main()

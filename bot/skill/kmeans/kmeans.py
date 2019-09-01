@@ -99,7 +99,7 @@ class SkillKmeans(skill.Skill):
     
     def __init__(self):
         super().__init__()
-    
+
     def help(self):
         self.respond(
             'usage:\n' +\
@@ -120,7 +120,6 @@ class SkillKmeans(skill.Skill):
         a random one.
         '''
         prompt_list = prompt.split(' ')
-
         k_value = None
         
         # was an k value provided?

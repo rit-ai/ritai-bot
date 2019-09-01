@@ -12,7 +12,7 @@ class SkillHelp(skill.Skill):
     
     def __init__(self):
         super().__init__()
-    
+
     def help(self):
         self.respond(
             'RITAI VERSION [%s]:\n' % const.VERSION +\

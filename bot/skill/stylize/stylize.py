@@ -102,7 +102,6 @@ class SkillStylize(skill.Skill):
         Applies style transfer to an image using a neural network.
         '''
         prompt_list = prompt.split(' ')
-            
         style = None
         
         # what style does the user want?

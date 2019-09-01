@@ -2,7 +2,7 @@
 
 # RIT-AI Bot
 
-This is code to run a Slackbot for the RITficial Intelligence club at RIT. If you would like to run it, you will need the Bot User Secret, which the Eboard should be able to locate for you.
+This is code to run a Slackbot for the RITficial Intelligence club at RIT. If you would like to run it, you will need the Bot User Secret, which the Eboard should be able to provide you.
 
 ## Installation
 
@@ -12,19 +12,15 @@ Install requirements.
 pip install -r requirements.txt
 ```
 
-Create a .sh file with these three lines:
+Copy `driver.env.py` to `driver.py` and replace `<app_secret>` and `<bot_user_secret>` with your secrets.
+
+Then, you can run the app with this command:
 
 ```
-export APP_ACCESS_TOKEN='<app_secret>'
-export APP_BOT_USER_TOKEN='<bot_user_secret>'
-python3 bot.py
+python3 driver.py
 ```
 
-Then, you can run this file using the command:
-
-```
-./bot.sh
-```
+This setup is constructed so that the program can also be run easily on a Docker image. 
 
 It runs continuously. So far it has access to these commands, all prepended with @ritai:
 
