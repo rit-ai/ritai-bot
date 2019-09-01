@@ -14,20 +14,25 @@ import time
 # additional libraries
 import requests
 import traceback
-from slackclient import SlackClient
+from slack import WebClient
 
-# project-specific libraries
-import const
-import command
-import transmit
-
-# instantiate Slack client
-client = SlackClient(const.BOT_TOKEN)
-# starterbot's user ID in Slack: value is assigned after the bot starts up
-bot_name = None
+from . import const
+from .skill.help import help
+from .skill.mnist import mnist
+from .skill.kmeans import kmeans
+from .skill.stylize import stylize
+from .skill.caption import caption
 
 TIME_FORMAT = '%H:%M:%S'
 ELOG_CHANNEL = 'test_bots'
+# A dictionary of string prompts mapping to functions
+CATALOGUE = {
+    const.HELP_PROMPT       : help.SkillHelp(),
+    const.KMEANS_PROMPT     : kmeans.SkillKmeans(),
+    const.MNIST_PROMPT      : mnist.SkillMnist(),
+    const.STYLIZE_PROMPT    : stylize.SkillStylize(),
+    const.CAPTION_PROMPT    : caption.SkillCaption()
+}
 
 def log(s):
     '''More informative print debugging'''
@@ -51,8 +56,24 @@ def post_error(error, client):
         channel=elog_channel,
         text=error,
     )
+    
+def download_attached_image(img_url, bot_token):
+    '''Downloads an image from a url'''
+    # sometimes slack packages urls in messages in brackets
+    # these will cause an error unless we remove them
+    if img_url[0] == '<':
+        img_url = img_url[1:-1]
+    
+    headers = {'Authorization': 'Bearer %s' % bot_token}
+    response = requests.get(img_url, headers=headers)
+    
+    if not os.path.isdir(const.TEMP_PATH):
+        os.makedirs(const.TEMP_PATH)
+    
+    with open(const.TEMP_PATH / const.IN_IMG_NAME, 'wb') as image:
+        image.write(response.content)
 
-def parse_bot_commands(slack_events):
+def parse_bot_commands(slack_events, bot_name, bot_token):
     '''
     Parses a list of events coming from the Slack RTM API to find bot commands.
     If a bot prompt is found, this function returns a tuple of prompt and 
@@ -68,7 +89,7 @@ def parse_bot_commands(slack_events):
                 if 'files' in event:
                     # file is present
                     f = event['files'][0]
-                    transmit.download_image(f['url_private_download'])
+                    download_attached_image(f['url_private_download'], bot_token)
                 
                 # reply to the parent thread, not the child thread
                 if 'thread_ts' in event:
@@ -93,7 +114,8 @@ def parse_direct_mention(message_text):
     else:
         return (None, None)
 
-def handle_prompt(prompt, channel, thread):
+
+def handle_prompt(prompt, info):
     '''
     Executes bot prompt if the prompt is known. The bot runs continuously and 
     logs errors to a file.
@@ -102,24 +124,37 @@ def handle_prompt(prompt, channel, thread):
     default_response = 'Unknown prompt. Try @ritai {}'.format(const.HELP_PROMPT)
     error_response = 'There\'s been an error. Whoops, please edit.'
 
+    # Help is a special Skill that we use to inform the user as to what the bot
+    # can and cannot do
+    Help = CATALOGUE[const.HELP_PROMPT]
+    Help.set_info(info)
+
     try:
-        if prompt.startswith(const.HELP_PROMPT):
-            command.bot_help(prompt, channel, client, thread)
-
-        elif prompt.startswith(const.KMEANS_PROMPT):
-            command.bot_kmeans(prompt, channel, client, thread)
-
-        elif prompt.startswith(const.MNIST_PROMPT):
-            command.bot_mnist(prompt, channel, client, thread)
-
-        elif prompt.startswith(const.JOKE_PROMPT):
-            command.bot_joke(prompt, channel, client, thread)
-            
-        elif prompt.startswith(const.STYLIZE_PROMPT):
-            command.bot_stylize(prompt, channel, client, thread)
+        # get the first and second words of the sent message (if they exist)
+        words = prompt.split(' ')
+        firstword = words[0]
+        if len(words) > 1:
+            secondword = words[1]
+        else:
+            secondword = None
         
+        # if the first word is asking for clarification, print a message
+        if firstword == const.HELP_PROMPT:
+            # send clarification about a command
+            if secondword and secondword in CATALOGUE.keys():
+                CATALOGUE[secondword].set_info(info)
+                CATALOGUE[secondword].help()
+            # send general clarification
+            else:
+                Help.help(info)
+
         elif prompt.startswith(const.ERROR_PROMPT):
             raise Exception('please edit')
+  
+        # if we recognize the command, then execute it
+        elif firstword in CATALOGUE.keys():
+            CATALOGUE[firstword].set_info(info)
+            CATALOGUE[firstword].execute(prompt)
 
         else:
             command.respond(default_response, channel, client, thread)
@@ -131,28 +166,43 @@ def handle_prompt(prompt, channel, thread):
         err = traceback.format_exc()
         if not os.path.isdir(const.LOG_PATH):
             os.makedirs(const.LOG_PATH)
-        with open(const.LOG_PATH + 'elog.txt', 'a') as elog:
+        with open(str(const.LOG_PATH / 'elog.txt'), 'a') as elog:
             elog.write('[%s]: %s\n' % (time.strftime(TIME_FORMAT, time.localtime()), prompt))
             elog.write('[%s]: %s\n' % (time.strftime(TIME_FORMAT, time.localtime()), err))
         post_error(err, client)
         log(err)
         command.respond(error_response, channel, client, thread)
 
-if __name__ == '__main__':
-    # try to connect to slack
-    if client.rtm_connect(with_team_state=False):
-        # Read bot's user ID by calling Web API method `auth.test`
-        bot_name = client.api_call('auth.test')['user_id']
-        # connection is successful
-        log('ritai-bot connected and running!')
+def launch_bot():
+    try:
+        bot_token = os.environ.get('APP_BOT_USER_TOKEN')
+        # instantiate Slack client
+        client = WebClient(bot_token)
 
+        # try to connect to slack
+        if client.rtm_connect(with_team_state=False):
+            # Read bot's user ID by calling Web API method `auth.test`
+            bot_name = client.api_call('auth.test')['user_id']
+            # connection is successful
+            log('ritai-bot connected and running!')
+            
+        return True
+    except:
+        log('Connection failed. Exception traceback printed above.')
+        return False
+
+def main():
+    if launch_bot(access_token, bot_user_token):
         while True:
             # loop forever, checking for mentions every RTM_READ_DELAY
             prompt, channel, thread = parse_bot_commands(client.rtm_read())
             if prompt:
                 log(prompt)
-                handle_prompt(prompt, channel, thread)
+                # info is an object that lets the bot keep track of who it's responding to.
+                info = {
+                    const.INFO_CLIENT: client, 
+                    const.INFO_CHANNEL: channel, 
+                    const.INFO_THREAD: thread
+                }
+                handle_prompt(prompt, info)
             time.sleep(const.RTM_READ_DELAY)
-            
-    else:
-        log('Connection failed. Exception traceback printed above.')
