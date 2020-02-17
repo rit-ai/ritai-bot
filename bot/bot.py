@@ -10,12 +10,11 @@ import re
 import sys
 import pdb
 import time
-
-# additional libraries
 import requests
 import traceback
-from slack import WebClient
 
+# additional libraries
+from slackclient import SlackClient
 
 # project-specific libraries
 from . import const
@@ -143,7 +142,7 @@ def handle_prompt(prompt, info):
                 CATALOGUE[secondword].help()
             # send general clarification
             else:
-                Help.help(info)
+                Help.help()
 
         elif prompt.startswith(const.ERROR_PROMPT):
             raise Exception('please edit')
@@ -172,37 +171,28 @@ def handle_prompt(prompt, info):
         log(err)
         Help.error()
 
-def main(access_token=None, bot_user_token=None):
-    # if the environment variables we need to log in were provided, set them
-    if access_token:
-        os.environ['APP_ACCESS_TOKEN'] = access_token
-    if bot_user_token:
-        os.environ['APP_BOT_USER_TOKEN'] = bot_user_token
-        
-    bot_token = os.environ.get('APP_BOT_USER_TOKEN')
-    # instantiate Slack client
-    client = SlackClient(bot_token)
-
 def launch_bot():
     try:
         bot_token = os.environ.get('APP_BOT_USER_TOKEN')
         # instantiate Slack client
-        client = WebClient(bot_token)
+        client = SlackClient(bot_token)
 
         # try to connect to slack
-        if client.rtm_connect(with_team_state=False):
+        if client.rtm_connect(with_team_state='False'):
             # Read bot's user ID by calling Web API method `auth.test`
             bot_name = client.api_call('auth.test')['user_id']
             # connection is successful
             log('ritai-bot connected and running!')
             
-        return True
+        return client, bot_name, bot_token
     except:
+        traceback.print_exc()
         log('Connection failed. Exception traceback printed above.')
-        return False
+        return None, None, None
 
 def main():
-    if launch_bot(access_token, bot_user_token):
+    client, bot_name, bot_token = launch_bot()
+    if client:
         while True:
             # loop forever, checking for mentions every RTM_READ_DELAY
             prompt, channel, thread = parse_bot_commands(client.rtm_read(), bot_name, bot_token)
@@ -218,7 +208,7 @@ def main():
             time.sleep(const.RTM_READ_DELAY)
             
     else:
-        log('Connection failed. Exception traceback printed above.')
+        log('Could not connect to slack client.')
 
 if __name__ == '__main__':
     main()
