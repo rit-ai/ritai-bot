@@ -7,15 +7,13 @@ This is code to run a Slackbot for the RITficial Intelligence club at RIT. If yo
 ## Installation
 
 Install requirements.
-
 ```
 pip install -r requirements.txt
 ```
 
-Copy `driver.env.py` to `driver.py` and replace `<app_secret>` and `<bot_user_secret>` with your secrets.
+Run `export APP_BOT_USER_TOKEN=<your bot token here>`
 
 Then, you can run the app with this command:
-
 ```
 python3 driver.py
 ```
