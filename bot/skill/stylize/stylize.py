@@ -1,5 +1,5 @@
 
-import core
+from . import core
 from .. import skill
 
 class SkillStylize(skill.Skill):
@@ -51,9 +51,9 @@ class SkillStylize(skill.Skill):
             return
         
         if not style:
-            style = random.choice(self.styles)
+            style = core.random.choice(self.styles)
         
-        ckpt = MODEL_DIR + '{style}.t7'.format(style=style)
+        ckpt = core.MODEL_DIR + '{style}.t7'.format(style=style)
         
         # perform style transfer
         img = self.read_image()

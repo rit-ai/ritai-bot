@@ -8,7 +8,7 @@
 import argparse
 import random
 import time
-import pdb
+#import pdb
 import os
 
 # required lib
@@ -38,7 +38,7 @@ def style_transfer(image, ckpt):
         chkpt   : the name of the model to use for style transfer
     '''
     # if no model is chosen, then choose a random one
-    pdb.set_trace()
+    #pdb.set_trace()
     if not ckpt:
         models = os.listdir(MODEL_DIR)
         ckpt = MODEL_DIR + random.choice(models)
