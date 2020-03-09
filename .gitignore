@@ -11,6 +11,3 @@ Pipfile
 driver
 
 __pycache__
-
-# Don't commit configured secrets
-driver.py
